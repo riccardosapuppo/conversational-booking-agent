@@ -1,0 +1,32 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Tests
+        run: python -m unittest discover -s tests -t . -v
+
+      # The tests were written alongside the code they test, so they are good
+      # at saying it still does what it did. These are whole conversations,
+      # and they fail if any of them goes round in circles.
+      - name: Whole conversations
+        run: python -m tools.transcripts
+
+      # It has to start, not just import. A service that only works under a
+      # test client is a service nobody can run.
+      - name: The service starts and answers
+        run: |
+          python -m booking_agent.service --port 8123 &
+          for attempt in $(seq 30); do
+            curl -sf http://127.0.0.1:8123/health && break || sleep 1
+          done
+          curl -sf http://127.0.0.1:8123/health

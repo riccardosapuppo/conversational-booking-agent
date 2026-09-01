@@ -27,6 +27,7 @@ from typing import Callable
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from booking_agent import __author__, __version__
 from booking_agent.channels import for_name
 from booking_agent.clinic.build import Clinic, default
 from booking_agent.conversation.graph import Agent
@@ -90,7 +91,8 @@ def build(
     api = FastAPI(
         title="Booking agent",
         summary=f"Takes booking calls for {where.name}.",
-        version="1.0.0",
+        version=__version__,
+        contact={"name": f"Developed by {__author__}"},
     )
 
     def answer(reference: str, call, reply: str) -> Reply:
@@ -128,7 +130,13 @@ def build(
 
     @api.get("/health")
     def health() -> dict:
-        return {"clinic": where.name, "exams": len(where.catalogue), "calls": len(calls)}
+        return {
+            "version": __version__,
+            "developed_by": __author__,
+            "clinic": where.name,
+            "exams": len(where.catalogue),
+            "calls": len(calls),
+        }
 
     @api.post("/calls", status_code=201)
     def start(body: Start) -> Reply:

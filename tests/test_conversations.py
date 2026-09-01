@@ -396,6 +396,45 @@ class WhatTheTranscriptsCaught(unittest.TestCase):
         self.assertEqual([request.exam.code for request in talk.requests], ["XR-CHEST"])
         self.assertEqual(talk.candidates, [])
 
+    def test_an_answer_may_say_more_than_it_was_asked(self) -> None:
+        # Found while writing the README, which is a worse place to find it
+        # than a test and a better one than a demonstration. Asked "left or
+        # right?", this caller says "left, no contrast": the answer, and then
+        # the next one. The side was taken and the rest thrown away, so the
+        # agent asked about contrast and the caller repeated themselves.
+        one = agent()
+        talk = new("t7")
+
+        one.reply_to(talk, "mri knee", now=FRIDAY_BEFORE)
+        said = one.reply_to(talk, "left, no contrast", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.requests[0].side, "left")
+        self.assertIs(talk.requests[0].contrast, False)
+        self.assertIn("name", said.lower())
+
+    def test_in_either_order(self) -> None:
+        one = agent()
+        talk = new("t8")
+
+        one.reply_to(talk, "mri knee", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "no contrast, left", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.requests[0].side, "left")
+        self.assertIs(talk.requests[0].contrast, False)
+
+    def test_but_yes_still_only_answers_the_question_that_was_asked(self) -> None:
+        # "Yes" means with contrast when contrast is what was asked about, and
+        # nothing at all when the question was left or right.
+        one = agent()
+        talk = new("t9")
+
+        one.reply_to(talk, "mri knee", now=FRIDAY_BEFORE)
+        said = one.reply_to(talk, "yes", now=FRIDAY_BEFORE)
+
+        self.assertIsNone(talk.requests[0].side)
+        self.assertIsNone(talk.requests[0].contrast)
+        self.assertIn("left or right", said.lower())
+
     def test_an_appointment_they_already_have_is_its_own_reason(self) -> None:
         # It used to be counted as "not understood", which would put a working
         # part of the agent on somebody's list of things to fix.

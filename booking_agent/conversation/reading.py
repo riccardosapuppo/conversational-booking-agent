@@ -207,18 +207,22 @@ class Rules:
         # was asked, the agent heard it as gibberish and asked again, which is
         # the loop that makes people hang up. What is expected is not a hint
         # here; it is most of the meaning.
-        if expecting == "side":
+        # Both are read whichever of the two was asked about, because people
+        # answer the question and then keep going: "left, no contrast" is one
+        # reply to "left or right?", and taking only the side out of it means
+        # asking about the contrast a moment later and hearing the caller
+        # repeat themselves. Answering more than you were asked is normal; an
+        # agent that only hears its own question is a form being read out.
+        if expecting in ("side", "contrast"):
             side = side_in(text)
-            if side is not None:
-                return Reading(intent="book", side=side)
+            wanted = contrast_in(text)
+            if side is not None or wanted is not None:
+                return Reading(intent="book", side=side, contrast=wanted)
 
         if expecting == "contrast":
-            wanted = contrast_in(text)
-            if wanted is not None:
-                return Reading(intent="book", contrast=wanted)
             # "Yes" and "no" are answers to "with or without contrast?" too,
-            # and checked here so that "no" is read as the answer rather than
-            # as turning something down.
+            # and only when that is the question: read here so that "no" is the
+            # answer rather than turning something down.
             if _has(lowered, _AGREE):
                 return Reading(intent="book", contrast=True)
             if _has(lowered, _REFUSE):

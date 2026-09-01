@@ -19,6 +19,7 @@ import argparse
 import sys
 from datetime import datetime
 
+from booking_agent import __author__, __version__
 from booking_agent.channels import for_name
 from booking_agent.clinic.build import default, from_file
 from booking_agent.conversation.graph import Agent
@@ -45,7 +46,8 @@ def main(argv: list[str]) -> int:
     )
     conversation = new("talk")
 
-    print(f"{clinic.name} — {len(clinic.catalogue)} exams. Ctrl-C to hang up.\n")
+    print(f"Booking agent {__version__} — developed by {__author__}")
+    print(f"{clinic.name}, {len(clinic.catalogue)} exams. Ctrl-C to hang up.\n")
     print(f"  agent : {channel.say(agent.greeting())}\n")
 
     while not conversation.over:
