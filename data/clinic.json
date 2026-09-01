@@ -1,0 +1,95 @@
+{
+  "readme": "A clinic that does not exist, used to demonstrate this agent. Every exam, room and price here is invented. It is deliberately not a tidy catalogue: several entries are here because they break an assumption the code would otherwise be free to make.",
+  "name": "Example Clinic",
+  "opening_hours": "Monday to Friday, 8am to 6pm",
+  "address": "12 Example Street, Anytown",
+
+  "exams": [
+    {
+      "code": "MRI-KNEE",
+      "name": "MRI knee",
+      "modality": "MR",
+      "minutes": 30,
+      "price": 180.0,
+      "synonyms": ["resonance knee", "magnetic resonance knee"],
+      "needs_side": true,
+      "needs_contrast": true,
+      "note": "Wants both a side and a contrast, so the agent has to ask twice before it can look."
+    },
+    {
+      "code": "XR-KNEE",
+      "name": "X-ray knee",
+      "modality": "XR",
+      "minutes": 10,
+      "price": 45.0,
+      "synonyms": ["radiography knee", "knee radiograph"],
+      "needs_side": true,
+      "note": "Here so that the word knee names two exams. An agent that picks one is wrong half the time."
+    },
+    {
+      "code": "XR-CHEST",
+      "name": "X-ray chest",
+      "modality": "XR",
+      "minutes": 10,
+      "price": 40.0,
+      "synonyms": ["chest radiograph", "chest film"],
+      "note": "Has no side. Asking which one is how an agent sounds like a form."
+    },
+    {
+      "code": "US-ABDOMEN",
+      "name": "Ultrasound abdomen",
+      "modality": "US",
+      "minutes": 20,
+      "price": 90.0,
+      "synonyms": ["echography abdomen", "abdominal ultrasound", "scan of the tummy"],
+      "note": "The one people name in three completely different ways."
+    },
+    {
+      "code": "MRI-SPINE",
+      "name": "MRI whole spine",
+      "modality": "MR",
+      "minutes": 75,
+      "price": 420.0,
+      "synonyms": ["resonance spine", "whole spine"],
+      "needs_contrast": true,
+      "note": "Longer than some of the sessions in the diary, so it cannot be offered everywhere the room is free."
+    },
+    {
+      "code": "CT-ANGIO",
+      "name": "CT angiography",
+      "modality": "CT",
+      "minutes": 25,
+      "price": 320.0,
+      "synonyms": ["angiography", "angio"],
+      "bookable": false,
+      "unbookable_reason": "a doctor has to approve the contrast dose first",
+      "note": "In the catalogue so it can be found and explained. Hiding it makes the clinic look as if it does not do it."
+    },
+    {
+      "code": "MAM-SCREEN",
+      "name": "Mammogram",
+      "modality": "MG",
+      "minutes": 20,
+      "price": 95.0,
+      "synonyms": ["mammography", "breast screening"],
+      "note": "The only exam in its modality, in the only room that does it: when that room is busy there is no second choice."
+    }
+  ],
+
+  "rooms": [
+    { "code": "MR1", "name": "MRI room 1", "modalities": ["MR"] },
+    { "code": "XR1", "name": "X-ray room 1", "modalities": ["XR"] },
+    { "code": "XR2", "name": "X-ray room 2", "modalities": ["XR", "MG"] },
+    { "code": "US1", "name": "Ultrasound room", "modalities": ["US"] },
+    { "code": "CT1", "name": "CT room", "modalities": ["CT"] }
+  ],
+
+  "sessions": [
+    { "room": "MR1", "opens": "09:00", "closes": "13:00", "weekdays": [0, 1, 2, 3, 4] },
+    { "room": "MR1", "opens": "14:00", "closes": "17:00", "weekdays": [1, 3] },
+    { "room": "XR1", "opens": "08:00", "closes": "18:00", "weekdays": [0, 1, 2, 3, 4] },
+    { "room": "XR2", "opens": "09:00", "closes": "12:00", "weekdays": [0, 2, 4] },
+    { "room": "US1", "opens": "09:00", "closes": "13:00", "weekdays": [0, 1, 2, 3, 4] },
+    { "room": "CT1", "opens": "09:00", "closes": "13:00", "weekdays": [1, 3] }
+  ]
+}
