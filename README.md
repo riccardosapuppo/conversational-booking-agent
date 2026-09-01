@@ -6,12 +6,29 @@ ask, an exam to identify out of several that answer to the same word, a slot to
 hold while they decide, and a set of situations where the right thing to do is
 to stop and fetch a person.
 
-It runs with no account, no API key and no model. Type at it:
+## Before you start
+
+**Python 3.10 or newer**, and nothing else. No database, no message broker, no
+container, no account, no API key, and no model — the agent runs on rules, and
+that is a decision rather than a stage it has not reached yet.
+
+Check what you have with `python --version`. On Windows the command is often
+`py` rather than `python`; on Linux and macOS it may be `python3`.
+
+## Running it
 
 ```
+git clone https://github.com/riccardosapuppo/conversational-booking-agent
+cd conversational-booking-agent
 pip install -r requirements.txt
+
 python -m tools.talk
 ```
+
+Four packages are installed, all of them pinned in
+[requirements.txt](requirements.txt): LangGraph for the conversation graph,
+FastAPI and uvicorn for the HTTP service, and httpx for the tests. Then type at
+it:
 
 ```
   agent : You are through to Example Clinic. What can I book for you?

@@ -4,11 +4,20 @@ on: [push, pull_request]
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # The README says "Python 3.10 or newer". Running both ends of that makes
+    # it a fact rather than a claim: 3.10 is the oldest the dependencies allow,
+    # and it is the one nobody develops on, so it is the one that breaks.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - run: pip install -r requirements.txt
 
