@@ -107,11 +107,54 @@ test](tests/test_service.py) fails if a domain package ever learns the word
 `fastapi`. The direction of that dependency is the design, and it is exactly
 the kind of thing one convenient import undoes.
 
+### The conversation graph
+
+```mermaid
+graph TD;
+	__start__([__start__]):::first
+	understand(understand)
+	clarify(clarify)
+	offer(offer)
+	hold(hold)
+	book(book)
+	another(another)
+	answer(answer)
+	handover(handover)
+	__end__([__end__]):::last
+	__start__ --> understand;
+	understand -.-> another;
+	understand -.-> answer;
+	understand -.-> book;
+	understand -.-> clarify;
+	understand -.-> handover;
+	understand -.-> hold;
+	understand -.-> offer;
+	another --> __end__;
+	answer --> __end__;
+	book --> __end__;
+	clarify --> __end__;
+	handover --> __end__;
+	hold --> __end__;
+	offer --> __end__;
+```
+
+Drawn by `python -m tools.diagram`, from the graph rather than from memory —
+[a test](tests/test_diagram.py) fails if a node is added here and forgotten
+there, because a hand-drawn picture of a graph is accurate exactly once.
+
+Every node ends the turn. The graph is entered once per message and not run to
+completion, because a booking conversation does not finish on its own: it
+waits, and waiting is its normal state. What each node does is one thing —
+`clarify` asks for exactly one missing piece, `hold` keeps a slot, `handover`
+writes the note the person taking over will read.
+
 Three consequences worth naming:
 
 - **The flow is one function.** `_route` in `graph.py` is the whole of what the
   agent decides, top to bottom, and every node can be run against a state built
-  by hand in three lines.
+  by hand in three lines. The thing this replaces had one node with two and a
+  half thousand lines inside it, which is a way of saying it had no graph at
+  all.
 - **Nothing reads the clock.** The time is passed in everywhere below
   `service/`, so a hold running out mid-sentence is a three-line test rather
   than a ten-minute wait.

@@ -78,6 +78,15 @@ class Agent:
 
     # ------------------------------------------------------------------ turn
 
+    def drawn(self):
+        """The graph itself, for anything that wants to draw or inspect it.
+
+        A method rather than reaching into the private attribute, so that the
+        one tool that draws the README picture is not the reason this class
+        can never change how it holds its graph.
+        """
+        return self._graph.get_graph()
+
     def greeting(self) -> str:
         """What it says before anybody has said anything.
 
