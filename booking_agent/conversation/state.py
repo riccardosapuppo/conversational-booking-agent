@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Sequence
 
-from booking_agent.clinic.catalogue import Request
+from booking_agent.clinic.catalogue import Exam, Request
 from booking_agent.clinic.diary import Booking, Slot
 
 #: Why a conversation was handed to a person. Kept as a closed set rather than
@@ -29,6 +29,10 @@ Escalation = Literal[
     "cannot_be_booked_here",
     "booking_failed",
     "caller_is_upset",
+    #: Something already in the diary. Its own reason rather than one of the
+    #: others: the agent understood perfectly well and still cannot help,
+    #: because it has no way to know the caller is who they say they are.
+    "already_booked",
 ]
 
 Stage = Literal[
@@ -67,8 +71,19 @@ class Conversation:
     patient: str | None = None
     booking_for_someone_else: bool = False
 
+    #: The exams just read out as a question, when what they said named more
+    #: than one. Kept because the answer only makes sense against them: "the
+    #: MRI one" is not a search of the catalogue, it is a choice between two
+    #: things the agent said out loud a moment ago, and an agent that forgets
+    #: what it just asked asks it again.
+    candidates: list[Exam] = field(default_factory=list)
+
     #: What was offered last, so "the second one" means something.
     offered: list[Slot] = field(default_factory=list)
+
+    #: Times already turned down. Offering them again is how "no, something
+    #: else" turns into the same three times for ever.
+    declined: list[Slot] = field(default_factory=list)
 
     #: The slots being kept while they decide, if any.
     hold: str | None = None
@@ -177,6 +192,17 @@ def offered_slot(conversation: Conversation, which: int) -> Slot | None:
     if which < 1 or which > len(conversation.offered):
         return None
     return conversation.offered[which - 1]
+
+
+def chosen_exam(conversation: Conversation, which: int) -> Exam | None:
+    """The exam a caller meant by "the second one", out of the ones just named.
+
+    The same counting-from-one as the slots, and the same reason for being a
+    function rather than an index: off by one here books the wrong exam.
+    """
+    if which < 1 or which > len(conversation.candidates):
+        return None
+    return conversation.candidates[which - 1]
 
 
 def new(session: str, *, now: datetime | None = None) -> Conversation:

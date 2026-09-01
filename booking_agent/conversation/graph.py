@@ -25,7 +25,7 @@ from langgraph.graph import END, START, StateGraph
 from booking_agent.clinic.catalogue import Catalogue, Request
 from booking_agent.clinic.diary import Diary, HoldExpired, Slot, SlotGone
 from booking_agent.conversation.reading import Reader, Reading
-from booking_agent.conversation.state import Conversation, offered_slot
+from booking_agent.conversation.state import Conversation, chosen_exam, offered_slot
 
 #: How many turns of not being understood before a person takes over. Two, not
 #: five: an agent that asks "sorry, could you say that again" three times has
@@ -44,13 +44,6 @@ class Turn(TypedDict, total=False):
     reading: Reading
     reply: str
     expecting: str
-
-
-def _list_slots(slots: list[Slot]) -> str:
-    return "; ".join(
-        f"{position}. {slot.starts:%A %-d %B at %-H:%M}" if hasattr(slot.starts, "strftime") else ""
-        for position, slot in enumerate(slots, start=1)
-    )
 
 
 def _times(slots: list[Slot]) -> str:
@@ -112,6 +105,11 @@ class Agent:
         if conversation.stage == "offering":
             return "slot"
 
+        # A question the agent asked out loud a moment ago, waiting for an
+        # answer that only means something against it.
+        if conversation.candidates:
+            return "exam_choice"
+
         # The first gap, because that is the one just asked about. Comparing
         # against the whole tuple missed the ordinary case: an exam needing
         # both a side and a contrast reports both at once, the agent asks for
@@ -132,8 +130,26 @@ class Agent:
         conversation = state["conversation"]
         reading = state["reading"]
 
-        why = "asked_for_a_person" if reading.intent == "operator" else "not_understood"
+        # Why, in the words somebody counting these at the end of a week can
+        # act on. Somebody ringing about an appointment they already have was
+        # understood perfectly; calling that "not understood" would put a
+        # working part of the agent on the list of things to fix.
+        why: str = "not_understood"
+        if reading.intent == "operator":
+            why = "asked_for_a_person"
+        elif reading.intent == "manage":
+            why = "already_booked"
+
         conversation.hand_over(why, note=conversation.summary())
+
+        if why == "already_booked":
+            return {
+                **state,
+                "reply": (
+                    "For an appointment you already have I need to know it is really you, "
+                    "and I cannot check that. I am putting you through to a colleague."
+                ),
+            }
 
         return {
             **state,
@@ -163,6 +179,17 @@ class Agent:
             return {**state, "reply": "Sorry — I did not catch that. What are you looking to book?"}
 
         conversation.stalled_turns = 0
+
+        # Answering the question by position: "the second one", out of the two
+        # the agent just read out.
+        if reading.intent == "choose" and conversation.candidates:
+            picked = chosen_exam(conversation, reading.which or 0)
+            if picked is None:
+                names = " or ".join(exam.name for exam in conversation.candidates)
+                return {**state, "reply": f"Sorry — was that {names}?"}
+            conversation.requests = [Request(exam=picked)]
+            conversation.candidates = []
+
         self._absorb(conversation, reading)
 
         # An exam this agent may not book. Said plainly, with the reason, and
@@ -182,10 +209,22 @@ class Agent:
         missing = conversation.missing()
 
         if missing == ("exam",):
-            found = self._catalogue.search(reading.exam_text or state["said"])
-            if len(found) > 1:
-                names = " or ".join(match.exam.name for match in found[:3])
-                return {**state, "reply": f"Did you mean {names}?"}
+            found = self._where_to_look(conversation).search(reading.exam_text or state["said"])
+
+            # Only the ones that scored as well as the best. Everything the
+            # search returned was offered before, so a message that named an
+            # MRI clearly was answered with "did you mean an MRI, an
+            # ultrasound, or an x-ray?" — three names, two of them there only
+            # because a single word had brushed against them.
+            if found:
+                best = found[0].score
+                close = [match.exam for match in found if abs(match.score - best) < 1e-9]
+                if len(close) > 1:
+                    conversation.candidates = close[:3]
+                    names = " or ".join(exam.name for exam in conversation.candidates)
+                    return {**state, "reply": f"Did you mean {names}?"}
+
+            conversation.candidates = []
             return {**state, "reply": "What would you like to book?"}
 
         if "side" in missing:
@@ -204,12 +243,19 @@ class Agent:
         minutes = conversation.minutes_needed()
         modality = conversation.requests[0].exam.modality
 
+        # Times already turned down, so "no, something else" means something
+        # else. Compared on the room and the minute rather than on the object:
+        # the diary hands out a fresh Slot every time it is asked.
+        already = {(slot.room, slot.starts) for slot in conversation.declined}
+
         found: list[Slot] = []
         day = self._now.date()
         for _ in range(14):
             for slot in self._diary.free(
                 modality=modality, minutes=minutes, day=day, now=self._now
             ):
+                if (slot.room, slot.starts) in already:
+                    continue
                 found.append(slot)
                 if len(found) >= OFFERS:
                     break
@@ -221,10 +267,11 @@ class Agent:
             # Nothing in a fortnight is not something to keep looking for out
             # loud. A person can offer a waiting list; this cannot.
             conversation.hand_over("booking_failed", note="nothing free in the next two weeks")
+            nothing = "anything else" if conversation.declined else "anything"
             return {
                 **state,
                 "reply": (
-                    "I cannot find anything in the next two weeks. "
+                    f"I cannot find {nothing} in the next two weeks. "
                     "I am passing you to a colleague who can look further ahead."
                 ),
             }
@@ -315,10 +362,29 @@ class Agent:
             self._diary.release(conversation.hold)
             conversation.hold = None
 
+        # What they turned down, so the next answer is a different one. Reading
+        # the same three times back was the whole of this agent's reply to "no,
+        # something else" — which is the answer that makes a caller ask for a
+        # person, and it passed a test that asserted nothing had changed.
+        conversation.declined.extend(conversation.offered)
+        conversation.offered = []
+
         conversation.stage = "gathering"
         return self._offer(state)
 
     # --------------------------------------------------------------- routing
+
+    def _where_to_look(self, conversation: Conversation) -> Catalogue:
+        """The catalogue to read the next message against.
+
+        Narrowed to what the agent just asked about, when it asked. "The MRI
+        one" names two exams in a clinic that does two kinds of MRI and exactly
+        one when the question was "did you mean the MRI or the x-ray?" — the
+        answer is only ambiguous if you have forgotten your own question.
+        """
+        if conversation.candidates:
+            return Catalogue(conversation.candidates)
+        return self._catalogue
 
     def _absorb(self, conversation: Conversation, reading: Reading) -> None:
         """Puts what was understood into what is known."""
@@ -326,9 +392,16 @@ class Agent:
             conversation.patient = reading.name
 
         if reading.exam_text:
-            request = self._catalogue.resolve(reading.exam_text)
+            # Against the question that was asked first, and against the whole
+            # catalogue after — somebody is allowed to answer "did you mean the
+            # MRI or the x-ray?" with "actually, make it an ultrasound".
+            request = self._where_to_look(conversation).resolve(reading.exam_text)
+            if request is None and conversation.candidates:
+                request = self._catalogue.resolve(reading.exam_text)
+
             if request is not None:
                 conversation.requests = [request]
+                conversation.candidates = []
                 return
 
         # A side or a contrast on its own answers the last question asked.
@@ -365,7 +438,10 @@ class Agent:
             return "answer"
 
         if reading.intent == "choose":
-            return "hold"
+            # "The second one" answers two different questions — which exam,
+            # and which time — and which of them it is depends on what was
+            # asked, not on the words.
+            return "clarify" if conversation.candidates else "hold"
 
         if reading.intent == "refuse":
             return "another" if conversation.offered else "clarify"

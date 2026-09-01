@@ -256,6 +256,16 @@ class Rules:
                 contrast=contrast_in(text),
             )
 
+        # Answering "did you mean an MRI or an x-ray?" by position rather than
+        # by name. Checked after the exam words and not before them, because
+        # "the MRI one" contains the word "one": read as an ordinal it means
+        # "the first one", which is a different answer that happens to be right
+        # half the time — the worst kind of wrong.
+        if expecting == "exam_choice":
+            which = _ordinal_in(lowered)
+            if which is not None:
+                return Reading(intent="choose", which=which)
+
         # Asked in this order on purpose: somebody saying "how much is an MRI"
         # has named an exam, and answering the price is more use than starting
         # a booking. But "how much" with no exam is still a question.

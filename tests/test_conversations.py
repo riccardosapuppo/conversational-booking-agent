@@ -237,6 +237,11 @@ class OtherThingsPeopleSay(unittest.TestCase):
         self.assertEqual(talk.stage, "handed_over")
 
     def test_not_liking_the_times_offered(self) -> None:
+        # The times have to be *different* times. This test used to assert the
+        # opposite — that nothing had changed, because nothing had been held —
+        # and it passed while the agent answered "no, something else" by
+        # reading the same three times back. It took a transcript to see it:
+        # the assertion was true, and it was about the wrong thing.
         one = agent()
         talk = new("s12")
         now = FRIDAY_BEFORE
@@ -244,11 +249,13 @@ class OtherThingsPeopleSay(unittest.TestCase):
         for said in ("mri knee", "left", "no contrast", "Mario Rossi"):
             one.reply_to(talk, said, now=now)
 
-        first = list(talk.offered)
+        first = [(slot.room, slot.starts) for slot in talk.offered]
         said = one.reply_to(talk, "no, something else", now=now)
+        second = [(slot.room, slot.starts) for slot in talk.offered]
 
         self.assertIn("1)", said)
-        self.assertEqual(talk.offered, first)  # nothing was held, so nothing changed
+        self.assertTrue(second)
+        self.assertEqual(set(first) & set(second), set())
 
     def test_asking_for_a_slot_that_was_not_offered(self) -> None:
         one = agent()
@@ -296,6 +303,109 @@ class TheAmbiguousCase(unittest.TestCase):
         self.assertIn("did you mean", said.lower())
         self.assertIn("MRI knee", said)
         self.assertIn("X-ray knee", said)
+
+
+class WhatTheTranscriptsCaught(unittest.TestCase):
+    """Four defects that seventy passing tests did not see.
+
+    Every one of them was found the first time whole conversations were run
+    through the agent instead of the turns it had been written against. They
+    are kept here as tests so they stay fixed, and kept together so it is
+    obvious what kind of mistake they all were: each one is a case the code
+    handled correctly for the example it was written for.
+    """
+
+    def test_a_message_of_nothing_but_common_words_books_nothing(self) -> None:
+        # "it's about the thing" used to reach "and what name should I put it
+        # under?", because a synonym reading "scan of the tummy" had put the
+        # word *the* into an exam's vocabulary.
+        both = Catalogue(
+            [
+                Exam(
+                    code="US-ABDOMEN",
+                    name="Ultrasound abdomen",
+                    modality="US",
+                    minutes=20,
+                    price=90.0,
+                    synonyms=("scan of the tummy",),
+                ),
+            ]
+        )
+        one = Agent(catalogue=both, diary=diary(), reader=Rules(both))
+        talk = new("t1")
+
+        said = one.reply_to(talk, "it's about the thing", now=FRIDAY_BEFORE)
+
+        self.assertIn("did not catch", said.lower())
+        self.assertEqual(talk.requests, [])
+
+    def test_a_whole_sentence_is_not_ambiguous_just_because_it_is_long(self) -> None:
+        # Said in one breath, the way people who know what they want say it.
+        one = agent()
+        talk = new("t2")
+
+        said = one.reply_to(
+            talk, "I need an MRI of the left knee without contrast", now=FRIDAY_BEFORE
+        )
+
+        self.assertNotIn("did you mean", said.lower())
+        self.assertEqual(talk.requests[0].exam.code, "MRI-KNEE")
+        self.assertEqual(talk.requests[0].side, "left")
+        self.assertIs(talk.requests[0].contrast, False)
+
+    def test_the_answer_to_did_you_mean_is_read_against_the_question(self) -> None:
+        both = Catalogue(
+            [
+                Exam(code="MRI-KNEE", name="MRI knee", modality="MR", minutes=30, price=180.0),
+                Exam(code="XR-KNEE", name="X-ray knee", modality="XR", minutes=10, price=45.0),
+                # A second MRI, so "the mri one" names two exams in the
+                # catalogue and exactly one of the two that were asked about.
+                Exam(code="MRI-SPINE", name="MRI whole spine", modality="MR", minutes=75, price=420.0),
+            ]
+        )
+        one = Agent(catalogue=both, diary=diary(), reader=Rules(both))
+        talk = new("t3")
+
+        one.reply_to(talk, "knee", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "the mri one", now=FRIDAY_BEFORE)
+
+        self.assertEqual([request.exam.code for request in talk.requests], ["MRI-KNEE"])
+
+    def test_the_answer_can_also_be_by_position(self) -> None:
+        both = Catalogue(
+            [
+                Exam(code="MRI-KNEE", name="MRI knee", modality="MR", minutes=30, price=180.0),
+                Exam(code="XR-KNEE", name="X-ray knee", modality="XR", minutes=10, price=45.0),
+            ]
+        )
+        one = Agent(catalogue=both, diary=diary(), reader=Rules(both))
+        talk = new("t4")
+
+        one.reply_to(talk, "knee", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "the second one", now=FRIDAY_BEFORE)
+
+        self.assertEqual([request.exam.code for request in talk.requests], ["XR-KNEE"])
+
+    def test_and_they_may_change_their_mind_instead_of_answering(self) -> None:
+        one = agent()
+        talk = new("t5")
+
+        one.reply_to(talk, "knee", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "actually a chest x-ray", now=FRIDAY_BEFORE)
+
+        self.assertEqual([request.exam.code for request in talk.requests], ["XR-CHEST"])
+        self.assertEqual(talk.candidates, [])
+
+    def test_an_appointment_they_already_have_is_its_own_reason(self) -> None:
+        # It used to be counted as "not understood", which would put a working
+        # part of the agent on somebody's list of things to fix.
+        one = agent()
+        talk = new("t6")
+
+        said = one.reply_to(talk, "I need to move my appointment on Thursday", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.handed_over, "already_booked")
+        self.assertIn("really you", said)
 
 
 if __name__ == "__main__":

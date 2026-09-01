@@ -42,6 +42,34 @@ _REFUSALS = {"no", "not", "without", "non", "none", "never"}
 #: Words that refuse contrast without naming it.
 _PLAIN = {"plain", "unenhanced", "noncontrast"}
 
+#: Words that name nothing, on either side of the match.
+#:
+#: Here because of a real failure rather than for tidiness. The synonym "scan of
+#: the tummy" put *of* and *the* into an exam's vocabulary, so every message
+#: containing the word "the" matched it: a caller who said "it's about the
+#: thing" was understood to want an abdominal ultrasound and was asked for their
+#: name. Nothing in the catalogue was wrong — the word "the" was simply allowed
+#: to count as evidence.
+#:
+#: Dropped from both sides, so an exam cannot answer to them either. The words
+#: that do the real work here — a side, a contrast, an ordinal — are read from
+#: the raw message elsewhere and are untouched by this.
+_NOISE = {
+    "a", "an", "the", "of", "for", "to", "and", "or", "on", "in", "at",
+    "my", "me", "i", "it", "its", "is", "am", "be", "do", "did", "you", "your",
+    "we", "us", "this", "that", "these", "those", "there", "here",
+    "please", "thanks", "hello", "hi",
+    "need", "needs", "want", "wants", "would", "like", "get", "got",
+    "have", "has", "book", "booking", "appointment",
+    "some", "any", "one", "thing", "about", "from", "with", "without",
+    "can", "could", "should", "s", "t",
+}
+
+
+def _content(words: Iterable[str]) -> set[str]:
+    """The words that carry a meaning worth matching on."""
+    return {word for word in words if word not in _NOISE}
+
 
 @dataclass(frozen=True)
 class Exam:
@@ -72,11 +100,17 @@ class Exam:
     unbookable_reason: str = ""
 
     def words(self) -> set[str]:
-        """Every word this exam answers to, lowered and split."""
+        """Every word this exam answers to, lowered and split.
+
+        Without the ones that name nothing: a synonym is written the way a
+        person would say it, so it carries "of" and "the" along with the words
+        that mean something, and an exam that answers to "the" answers to
+        everything.
+        """
         found: set[str] = set()
         for phrase in (self.name, *self.synonyms):
             found.update(_words(phrase))
-        return found
+        return _content(found)
 
 
 @dataclass(frozen=True)
@@ -149,6 +183,15 @@ class Catalogue:
             # from: whichever is found second is unreachable for ever.
             raise ValueError("two exams share a code")
 
+        # An exam whose every word is one of the ones that name nothing can
+        # never be found, however it is asked for. Better to hear about it
+        # while the file is being read than during a call.
+        nameless = [exam.code for exam in self._exams if not exam.words()]
+        if nameless:
+            raise ValueError(
+                "no searchable words in: " + ", ".join(nameless) + " — it could never be found"
+            )
+
     def __len__(self) -> int:
         return len(self._exams)
 
@@ -167,8 +210,11 @@ class Catalogue:
         same answer — and a tie at the top is an ambiguity rather than a
         winner, which is what resolve() makes of it.
         """
-        asked = set(_words(text))
+        asked = _content(_words(text))
         if not asked:
+            # Nothing was said that names anything. That is not an empty
+            # result to be worked around — it is the answer, and the reader
+            # turns it into "I did not catch that" rather than into a guess.
             return []
 
         found: list[Match] = []
