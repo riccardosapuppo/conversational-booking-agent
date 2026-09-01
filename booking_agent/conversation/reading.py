@@ -200,6 +200,30 @@ class Rules:
         if _has(lowered, _OPERATOR):
             return Reading(intent="operator")
 
+        # An answer to the question just asked.
+        #
+        # "Left" is a whole reply, and on its own it means nothing at all — it
+        # names no exam, agrees to nothing, asks nothing. Without knowing what
+        # was asked, the agent heard it as gibberish and asked again, which is
+        # the loop that makes people hang up. What is expected is not a hint
+        # here; it is most of the meaning.
+        if expecting == "side":
+            side = side_in(text)
+            if side is not None:
+                return Reading(intent="book", side=side)
+
+        if expecting == "contrast":
+            wanted = contrast_in(text)
+            if wanted is not None:
+                return Reading(intent="book", contrast=wanted)
+            # "Yes" and "no" are answers to "with or without contrast?" too,
+            # and checked here so that "no" is read as the answer rather than
+            # as turning something down.
+            if _has(lowered, _AGREE):
+                return Reading(intent="book", contrast=True)
+            if _has(lowered, _REFUSE):
+                return Reading(intent="book", contrast=False)
+
         # A name, when a name is what was asked for. Only then: "Mario" in the
         # middle of a booking is not necessarily the patient.
         if expecting == "patient":
