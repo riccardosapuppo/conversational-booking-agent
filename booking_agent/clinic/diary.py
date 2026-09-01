@@ -19,13 +19,38 @@ that follow from that are the whole of this file:
 
 from __future__ import annotations
 
-import uuid
+import secrets
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from typing import Iterable, Iterator, Sequence
+from typing import Container, Iterable, Iterator, Sequence
 
 #: How long a slot is kept while somebody makes up their mind.
 HOLD_MINUTES = 10
+
+#: What a reference is made of.
+#:
+#: Not the whole alphabet, because this is read out over a telephone to
+#: somebody writing it down with a pen. No O or I, which are heard as zero and
+#: one; no 0, 1, 5 or 8, which are heard back as O, I, S and B; and no vowels,
+#: which stops a run of random letters from occasionally spelling something the
+#: clinic would rather not say out loud.
+#:
+#: It replaced the first twelve characters of a uuid, which was unique, correct,
+#: and unusable by the person it was for.
+_ALPHABET = "CDFHJKLMNPRTVWXY234679"
+
+#: How long a reference is, before the dash. Two groups of three: people read
+#: back a group of three from memory and lose their place in a group of six.
+_GROUP = 3
+
+
+def reference(taken: Container[str] = ()) -> str:
+    """A booking reference somebody can write down while holding a phone."""
+    while True:
+        letters = "".join(secrets.choice(_ALPHABET) for _ in range(_GROUP * 2))
+        made = f"{letters[:_GROUP]}-{letters[_GROUP:]}"
+        if made not in taken:
+            return made
 
 
 @dataclass(frozen=True)
@@ -188,8 +213,12 @@ class Diary:
             if any(slot.overlaps(other) for other in busy):
                 raise SlotGone(f"{slot.starts:%d %b %H:%M} in {slot.room} has been taken")
 
+        # Against everything still live and everything already booked: a
+        # reference short enough to read out is short enough to collide, and
+        # the second caller to be given it would be handed the first one's
+        # appointment.
         held = Hold(
-            reference=uuid.uuid4().hex[:12],
+            reference=reference({*self._holds, *self._bookings}),
             slots=tuple(slots),
             until=now + timedelta(minutes=minutes),
         )
