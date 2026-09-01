@@ -1,0 +1,6 @@
+# What the service needs to run. Pinned, because an agent that behaves
+# differently on two machines is an agent nobody can debug.
+fastapi==0.119.0
+uvicorn==0.38.0
+pydantic==2.12.3
+sqlalchemy==2.0.44
