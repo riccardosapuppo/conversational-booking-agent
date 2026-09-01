@@ -1,6 +1,25 @@
-# What the service needs to run. Pinned, because an agent that behaves
-# differently on two machines is an agent nobody can debug.
-fastapi==0.119.0
-uvicorn==0.38.0
-pydantic==2.12.3
-sqlalchemy==2.0.44
+# Pinned, because an agent that behaves differently on two machines is an agent
+# nobody can debug. These are the versions it was built and run against.
+#
+# The list was wrong until the service was actually written: it pinned versions
+# nothing was tested at, named sqlalchemy, which is imported nowhere, and left
+# out langgraph, which is imported by the graph. A dependency list that has
+# never been installed from is a list of guesses.
+
+# The agent itself. The only third-party import in booking_agent/clinic,
+# /conversation and /channels put together — the domain is plain Python, which
+# is what lets the tests run a whole conversation in a millisecond.
+langgraph==1.2.11
+
+# The HTTP service, and nothing else. Nothing under booking_agent imports these
+# except booking_agent/service: the agent does not know it is behind a web
+# server, and putting it behind a different one is a new file rather than an
+# edit to an old one.
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+
+# For the tests. The service is tested through a real client against the real
+# application rather than by calling the handlers directly, because half of
+# what a web service can get wrong lives in the layer that skipping them skips.
+httpx==0.28.1

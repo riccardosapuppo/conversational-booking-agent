@@ -78,6 +78,16 @@ class Agent:
 
     # ------------------------------------------------------------------ turn
 
+    def greeting(self) -> str:
+        """What it says before anybody has said anything.
+
+        Here rather than in whatever starts the call, because it is a thing the
+        agent says, and everything the agent says is written in one place. The
+        alternative puts the first sentence of every conversation somewhere the
+        conversation tests cannot see it.
+        """
+        return f"You are through to {self._clinic}. What can I book for you?"
+
     def reply_to(self, conversation: Conversation, said: str, *, now: datetime) -> str:
         """One caller message in, one agent reply out."""
         conversation.said("caller", said)
