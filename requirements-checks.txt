@@ -1,0 +1,13 @@
+# For the checks that drive a browser, and nothing else.
+#
+# Separate from requirements.txt on purpose: the agent, the service and the
+# tests need none of this, and somebody who wants to run the project should not
+# install a browser driver to do it.
+#
+# `tools/screenshots.py` drives Microsoft Edge already on the machine
+# (`channel="msedge"`) rather than downloading a browser — which is the right
+# trade on a workstation and impossible on a runner with no browser, so it is
+# not in CI. It says so and stops if this is not installed, rather than
+# reporting a success it did not earn.
+
+playwright==1.62.0

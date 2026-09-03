@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Booking agent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="./mark.svg" />
+    <meta name="theme-color" content="#123b3a" />
+    <link rel="stylesheet" href="./console.css" />
+  </head>
+
+  <body>
+    <!--
+      The agent, with the clinic open beside it.
+
+      Until this existed the only way to see the agent work was to install
+      Python and type at a prompt, which meant most people who might want to see
+      it never would. What is here is the same agent over the same endpoints —
+      nothing on this page books anything, and there is no second path through
+      the rules for a screen to take.
+
+      The layout is the argument. The conversation is on the left, and what the
+      clinic actually holds is on the right, **at the same time**: an agent
+      offering "Monday at 09:15" is only interesting if you can look across and
+      see that 09:15 was free, and then watch it stop being free.
+    -->
+
+    <header class="top">
+      <div class="who">
+        <svg data-mark width="34" height="34" viewBox="0 0 32 32" role="img" aria-label="Booking agent" fill="none">
+          <rect width="32" height="32" rx="8" fill="var(--mark-ground)" />
+          <rect x="7" y="9" width="18" height="14" rx="2.5" fill="var(--mark-ink)" opacity="0.5" />
+          <rect x="7" y="9" width="18" height="4" rx="2" fill="var(--mark-ink)" />
+          <rect x="11" y="16.5" width="4" height="4" rx="1.2" fill="var(--mark-ground)" />
+        </svg>
+
+        <div>
+          <h1 id="clinic-name">…</h1>
+          <p id="clinic-detail">reading the clinic…</p>
+        </div>
+      </div>
+
+      <dl class="counts">
+        <div><dt>exams</dt><dd id="count-exams">—</dd></div>
+        <div><dt>rooms</dt><dd id="count-rooms">—</dd></div>
+        <div><dt>booked</dt><dd id="count-booked">0</dd></div>
+      </dl>
+    </header>
+
+    <p class="mode">
+      <span class="dot" aria-hidden="true"></span>
+      <span>
+        <strong>No model, no key, no account.</strong> The agent runs on rules,
+        which is why it can say <em>why</em> it asked what it asked — and why it
+        stops and fetches a person instead of guessing. This clinic does not
+        exist and nothing here is kept between two runs.
+      </span>
+    </p>
+
+    <main>
+      <!-- ─────────────────────────────────────────────── the conversation -->
+      <section class="panel talk">
+        <div class="talk-top">
+          <h2>Talk to it</h2>
+
+          <label class="how">
+            <span>as</span>
+            <select id="channel">
+              <option value="chat">chat</option>
+              <option value="voice">the telephone</option>
+            </select>
+          </label>
+
+          <button type="button" class="quiet" id="again">start again</button>
+        </div>
+
+        <p class="hint" id="channel-says">
+          The same agent, said differently: on the telephone a time is spoken
+          rather than listed, and a reference is spelled out twice.
+        </p>
+
+        <ol class="said" id="said" aria-live="polite"></ol>
+
+        <form id="say-form">
+          <label class="visually-hidden" for="text">What you say</label>
+          <input type="text" id="text" placeholder="I need an MRI of the knee" autocomplete="off" required />
+          <button type="submit" id="send">Say it</button>
+        </form>
+
+        <!--
+          Things to try, and what each one is meant to do.
+
+          `data-expect` is not decoration: a test says each of these sentences
+          to the real agent and fails if what comes back is not what the button
+          claims. The first version of this list had a button labelled
+          "something it must not answer" whose sentence the agent answered
+          quite happily, and another naming an exam this clinic does not have.
+          A page that promises a behaviour is a page that has to be checked
+          against the thing that behaves.
+        -->
+        <ul class="try" id="try">
+          <li><button type="button" data-say="knee" data-expect="asks-back">something ambiguous</button></li>
+          <li><button type="button" data-say="I need an MRI of the left knee without contrast" data-expect="asks-back">something complete</button></li>
+          <li><button type="button" data-say="a CT angiogram" data-expect="handover">one it may not book</button></li>
+          <li><button type="button" data-say="put me through to someone" data-expect="handover">asking for a person</button></li>
+          <li><button type="button" data-say="I want to change a booking" data-expect="handover">something it cannot verify</button></li>
+        </ul>
+
+        <!-- Where the conversation has got to, and what it is holding. -->
+        <div class="stage" id="stage" hidden>
+          <span class="what">stage</span>
+          <span class="value mono" id="stage-name">—</span>
+          <span class="what">reference</span>
+          <span class="value mono" id="call-reference">—</span>
+        </div>
+
+        <p class="handover" id="handover" hidden></p>
+      </section>
+
+      <!-- ────────────────────────────────────────────────────── the clinic -->
+      <section class="panel clinic">
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" data-tab="catalogue" aria-selected="true">The exams</button>
+          <button type="button" role="tab" data-tab="diary" aria-selected="false">The diary</button>
+          <button type="button" role="tab" data-tab="bookings" aria-selected="false">Booked</button>
+        </div>
+
+        <!-- The catalogue, searched with the agent's own search. -->
+        <div class="tab" id="tab-catalogue">
+          <form id="find-form">
+            <label class="visually-hidden" for="find">Find an exam</label>
+            <input type="text" id="find" placeholder="knee" autocomplete="off" />
+            <button type="submit">Find</button>
+          </form>
+
+          <p class="hint">
+            This is <strong>the agent's own search</strong>, not a filter written
+            for this screen. Type <code>knee</code> and you get the two exams
+            that answer to it — which is the reason it asks "did you mean".
+          </p>
+
+          <ul class="exams" id="exams"></ul>
+        </div>
+
+        <!-- The diary: free time, per room, per day. -->
+        <div class="tab" id="tab-diary" hidden>
+          <div class="diary-controls">
+            <label class="how">
+              <span>free for</span>
+              <select id="minutes">
+                <option value="15">15 minutes</option>
+                <option value="30" selected>30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">an hour</option>
+              </select>
+            </label>
+            <button type="button" class="quiet" id="refresh">look again</button>
+          </div>
+
+          <p class="hint">
+            A diary is only free <em>for something</em>. Thirty minutes free does
+            not mean an exam needing forty-five fits there, so the length is a
+            control rather than an assumption — and a slot held during a call
+            disappears from here while the call is open.
+          </p>
+
+          <div class="days" id="days"></div>
+        </div>
+
+        <!-- What the agent has actually booked. -->
+        <div class="tab" id="tab-bookings" hidden>
+          <p class="hint">
+            What the agent has booked, this run. Book something on the left and
+            it appears here — and the time it took stops being offered in the
+            diary.
+          </p>
+          <ul class="bookings" id="bookings"></ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        A demonstration. <code id="clinic-file">data/clinic.json</code> describes
+        a clinic that does not exist, and is deliberately untidy — two exams
+        answer to "knee", one needs a side and a contrast, one may not be booked
+        by an agent at all, and one modality has a single room.
+      </p>
+      <p class="by">Developed by <strong>Riccardo Sapuppo</strong></p>
+    </footer>
+
+    <script src="./console.js" type="module"></script>
+  </body>
+</html>

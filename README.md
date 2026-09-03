@@ -32,6 +32,32 @@ git clone https://github.com/riccardosapuppo/conversational-booking-agent
 cd conversational-booking-agent
 pip install -r requirements.txt
 
+python -m booking_agent.service
+```
+
+That opens the console on <http://127.0.0.1:8000>: the agent on the left, and
+the clinic it is booking in on the right, at the same time.
+
+![The console: a conversation where the agent asks which knee exam was meant, beside the catalogue showing the two exams that answer to the word](docs/console.png)
+
+**The layout is the argument.** An agent offering "Monday at 09:15" is only
+interesting if you can look across, see that 09:15 was free, and then watch it
+stop being free. So the diary is open beside the conversation rather than
+somewhere else, and the exam list is searched with **the agent’s own search** —
+not a filter written for the screen, which would be a second thing to keep in
+step and the one that quietly stopped agreeing.
+
+**Nothing on that page books anything.** Every booking goes through the
+conversation, which is where the rules that guard it live; a screen with its own
+path to the diary would be the path nobody tested. The views it reads are
+read-only, and a test tries every other verb on each of them.
+
+The browser is not opened in CI, with no terminal attached, or with `--no-open`
+(or `NO_OPEN=1`), and it says which of those happened.
+
+### Or at a prompt
+
+```
 python -m tools.talk
 ```
 
@@ -110,6 +136,43 @@ as O, I, S and B — and no vowels, so six random characters cannot spell
 anything the clinic would rather read out. Out loud it is spelled and then
 repeated. It used to be the first twelve characters of a uuid: unique, correct,
 and unusable by the person it was for.
+
+## The console
+
+Until it existed, the only way to see this agent work was to install Python and
+type at a prompt — which meant most people who might want to see it never would.
+It is the same agent over the same endpoints, with three things beside it.
+
+**What is free, for how long.** A diary is only free *for something*: thirty
+minutes free does not mean an exam needing forty-five fits there. So the length
+is a control rather than an assumption, and changing it changes what is offered.
+
+![The diary, showing what is free for an hour, by room and by day](docs/diary.png)
+
+**What it has booked, and what that cost the diary.** Book something on the left
+and it appears on the right — and the time it took stops being offered.
+
+![A completed booking listed with its reference, patient, exam, time and room](docs/booked.png)
+
+**Where it stops.** A handover is not an error and is not drawn as one. It is
+the agent doing the most useful thing available to it, and the reason travels
+with it.
+
+![The agent putting a caller through to a colleague, with what it had noted so far](docs/handover.png)
+
+### The buttons say what they do, and are checked against it
+
+The page offers a handful of sentences to try, each labelled with what it
+demonstrates. That is a promise, and a promise on a page is worth what the check
+behind it is worth — so each button carries a `data-expect`, and
+[a test](tests/test_looking.py) says its sentence to the real agent and fails if
+what comes back is not what the label claims.
+
+That is not a precaution. The first version of that list had a button labelled
+*"something it must not answer"* whose sentence the agent answered quite happily
+— it has no rule about clinical questions and never claimed one — and another
+naming an exam this clinic does not have. Both looked entirely convincing until
+somebody pressed them, and a screenshot is what pressed them.
 
 ## How it is put together
 
@@ -194,10 +257,16 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # the tests
+python -m unittest discover -s tests -t .   # 139 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
+python -m tools.screenshots                 # retakes the pictures above
 ```
+
+`tools.screenshots` drives **Microsoft Edge**, already on this machine, through
+Playwright — `pip install -r requirements-checks.txt`. It is not in CI, which
+has no browser, and it says so and stops rather than reporting a success it did
+not earn. It is also what pressed the buttons that turned out to be lying.
 
 The tests were written alongside the code they test, which makes them good at
 saying it still does what it did and poor at saying it does what a caller
@@ -226,6 +295,18 @@ Localhost only, with no default that reaches further.
 | `POST /calls/{call}/said` | `{"text": "..."}` → the reply, the stage, whether it is over |
 | `GET /calls/{call}` | where it has got to, without moving it on |
 | `DELETE /calls/{call}` | hang up |
+
+And the clinic, read-only — what the console draws on the right:
+
+| | |
+|---|---|
+| `GET /clinic` | who this is, and which rooms it has |
+| `GET /catalogue?q=` | every exam, or the ones a phrase finds. **The agent’s own search** |
+| `GET /diary?days=&minutes=` | what is free, by day and by room, *for that length* |
+| `GET /bookings` | what the agent has booked, this run |
+
+None of them changes anything, and a test tries every other verb on each to
+keep it that way.
 
 Calls are held in memory and let go of after an hour of silence. The booking is
 the thing worth keeping, and the diary already has it.

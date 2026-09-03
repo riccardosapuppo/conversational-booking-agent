@@ -149,6 +149,16 @@ class Diary:
 
     # ---------------------------------------------------------------- looking
 
+    @property
+    def rooms(self) -> list[Room]:
+        """Every room, in a fixed order.
+
+        Here so that nothing outside has to reach into the private mapping to
+        list them -- which the read-only views did until this existed, and a
+        private attribute with a reader is a private attribute in name only.
+        """
+        return sorted(self._rooms.values(), key=lambda one: one.code)
+
     def rooms_for(self, modality: str) -> list[Room]:
         return [room for room in self._rooms.values() if modality in room.modalities]
 

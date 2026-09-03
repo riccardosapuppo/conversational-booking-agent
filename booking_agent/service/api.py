@@ -22,15 +22,18 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from booking_agent import __author__, __version__
 from booking_agent.channels import for_name
 from booking_agent.clinic.build import Clinic, default
 from booking_agent.conversation.graph import Agent
+from booking_agent.service.looking import attach
 from booking_agent.conversation.reading import Reader, Rules
 from booking_agent.service.calls import Calls
 
@@ -177,5 +180,25 @@ def build(
     def hang_up(reference: str) -> None:
         if not calls.forget(reference):
             raise HTTPException(status_code=404, detail="no such call")
+
+    # The clinic, read-only: the catalogue, the diary and the book.
+    #
+    # Beside the agent rather than behind it, so what it says on the telephone
+    # can be checked against what the diary actually holds. Nothing in there
+    # books anything -- a second way to do the one thing this project is about
+    # would be the way nobody tested.
+    attach(api, where, clock)
+
+    # The console, if it is here.
+    #
+    # Mounted last, at the root, so every route above wins over a file with the
+    # same name -- a static mount at "/" placed first swallows the API.
+    #
+    # `check_dir=False` because a source checkout may not have been built and a
+    # missing folder should not stop the API from starting. The console is a
+    # way in, not the service.
+    console = Path(__file__).resolve().parent.parent.parent / "web"
+    if console.is_dir():
+        api.mount("/", StaticFiles(directory=console, html=True), name="console")
 
     return api

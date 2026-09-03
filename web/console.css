@@ -1,0 +1,390 @@
+/*
+ * One screen, and it is a comparison of a different kind.
+ *
+ * The conversation on the left and the clinic on the right, at the same time.
+ * An agent offering "Monday at 09:15" is only interesting if you can look
+ * across, see that 09:15 was free, and then watch it stop being free — so the
+ * two are side by side rather than in two places, and neither is a modal over
+ * the other.
+ *
+ * The colour is a deep green: a clinic, and a booking, and nothing about it
+ * wants to be urgent. One accent, and it means one thing — a slot that is
+ * free. Amber means the agent has stopped and asked for a person, which is a
+ * good outcome and is drawn as one rather than as an error.
+ */
+
+:root {
+  --ink: #16211f;
+  --ink-soft: #46534f;
+  --ink-faint: #7d8a86;
+
+  --paper: #f2f4f2;
+  --card: #ffffff;
+  --raised: #f7f9f7;
+  --line: #dde3e0;
+
+  --accent: #147a6d;
+  --accent-ink: #0d5850;
+  --accent-soft: #e3f2ef;
+  --accent-line: #b7ddd7;
+
+  --warn: #8a5a00;
+  --warn-soft: #fdf3e0;
+  --warn-line: #f0d9a8;
+
+  --mark-ground: #123b3a;
+  --mark-ink: #8fd6c9;
+
+  --ui: system-ui, 'Segoe UI', -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6ecea;
+    --ink-soft: #aebab6;
+    --ink-faint: #7e8b87;
+
+    --paper: #101715;
+    --card: #17201e;
+    --raised: #1c2624;
+    --line: #2a3634;
+
+    --accent: #57c0b0;
+    --accent-ink: #9fe0d5;
+    --accent-soft: #16302c;
+    --accent-line: #24473f;
+
+    --warn: #e8b665;
+    --warn-soft: #2c2415;
+    --warn-line: #4a3a1c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* `hidden` means hidden, whatever else an element is told to be: the attribute
+ * works by a `display: none` in the browser's own stylesheet, and any rule of
+ * ours that sets `display` beats it. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0 0 2rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.6 var(--ui);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.mono { font-family: var(--mono); font-size: 0.86em; }
+
+/* ------------------------------------------------------------------- top */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 1.2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+
+.who { display: flex; gap: 0.9rem; align-items: flex-start; }
+.who h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; }
+.who p { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.88rem; }
+
+.counts { display: flex; gap: 1.6rem; margin: 0; }
+.counts dt {
+  margin: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+}
+.counts dd { margin: 0.1rem 0 0; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------- the mode */
+
+.mode {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.8rem clamp(1rem, 3vw, 2.4rem);
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.mode .dot {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateY(-0.1em);
+}
+.mode strong { color: var(--ink); }
+
+/* ----------------------------------------------------------------- layout */
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.1rem;
+  padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0;
+  align-items: start;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.panel h2 { margin: 0; font-size: 1.05rem; }
+
+.hint { margin: 0.7rem 0 0; color: var(--ink-faint); font-size: 0.84rem; }
+.hint code { font-family: var(--mono); font-size: 0.86em; }
+.hint strong { color: var(--ink-soft); }
+
+/* ---------------------------------------------------------- the talking */
+
+.talk-top { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; }
+.talk-top h2 { margin-right: auto; }
+
+.how { display: flex; gap: 0.4rem; align-items: center; font-size: 0.84rem; color: var(--ink-faint); }
+.how select, .diary-controls select {
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.said {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--raised);
+  border-radius: 5px;
+  min-height: 16rem;
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.said li { display: flex; gap: 0.7rem; align-items: baseline; }
+
+.said .who {
+  flex: none;
+  width: 3.4rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.said .words { white-space: pre-wrap; overflow-wrap: anywhere; }
+.said li[data-who='you'] .words { color: var(--accent-ink); font-weight: 500; }
+.said li[data-who='you'] .who { color: var(--accent); }
+
+#say-form { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
+
+#text {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+#text:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+button {
+  font: 600 0.88rem/1 var(--ui);
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+button.quiet {
+  background: none;
+  color: var(--ink-soft);
+  border-color: var(--line);
+  font-weight: 500;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.65rem;
+}
+button.quiet:hover { background: var(--raised); color: var(--ink); border-color: var(--line); }
+
+.try { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0 0; padding: 0; }
+.try button {
+  background: var(--raised);
+  color: var(--ink-soft);
+  border-color: var(--line);
+  font-weight: 500;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.6rem;
+}
+.try button:hover { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent-line); }
+
+.stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: baseline;
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+.stage .what { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
+.stage .value { color: var(--ink); }
+
+/* A handover is the agent doing the most useful thing available to it. Amber,
+ * which on this page means exactly that, and never an error. */
+.handover {
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.85rem;
+}
+
+/* ----------------------------------------------------------- the clinic */
+
+.tabs { display: flex; gap: 0.3rem; margin-bottom: 0.9rem; }
+
+.tabs button {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--ink-faint);
+  font-weight: 500;
+  padding: 0.45rem 0.75rem;
+}
+.tabs button:hover { background: var(--raised); color: var(--ink); }
+.tabs button[aria-selected='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+#find-form { display: flex; gap: 0.6rem; }
+#find {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+#find:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+.exams, .bookings { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; max-height: 30rem; overflow-y: auto; }
+
+.exams li {
+  padding: 0.6rem 0.75rem;
+  border-radius: 5px;
+  border-left: 3px solid var(--line);
+  background: var(--raised);
+}
+
+.exams li[data-bookable='false'] { border-left-color: var(--warn-line); background: var(--warn-soft); }
+
+.exams .line { display: flex; gap: 0.7rem; align-items: baseline; flex-wrap: wrap; }
+.exams .line.small { margin-top: 0.15rem; font-size: 0.76rem; color: var(--ink-faint); }
+.exams .code { color: var(--accent-ink); font-weight: 600; min-width: 5rem; }
+.exams .name { font-weight: 500; flex: 1; min-width: 10rem; }
+.exams .minutes { color: var(--ink-faint); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.exams .modality { text-transform: uppercase; letter-spacing: 0.06em; }
+.exams .also { overflow-wrap: anywhere; }
+
+.exams .not-bookable { margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--warn); }
+.exams .matched { margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--accent); font-family: var(--mono); }
+
+.nothing { color: var(--ink-faint); font-style: italic; font-size: 0.85rem; padding: 0.6rem 0; }
+
+/* ------------------------------------------------------------- the diary */
+
+.diary-controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+
+.days { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.9rem; max-height: 30rem; overflow-y: auto; }
+
+.day { padding: 0.6rem 0.75rem; border-radius: 5px; background: var(--raised); }
+.day.empty { opacity: 0.6; }
+.day h3 { margin: 0 0 0.4rem; font-size: 0.85rem; font-weight: 600; }
+.day h3 .mono { color: var(--ink-faint); font-weight: 400; margin-left: 0.4rem; }
+
+.room { display: flex; gap: 0.6rem; align-items: baseline; margin-bottom: 0.3rem; flex-wrap: wrap; }
+.room-name { flex: none; min-width: 4.5rem; color: var(--ink-faint); }
+
+.times { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.at {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.more { font-size: 0.74rem; color: var(--ink-faint); align-self: center; }
+
+/* ---------------------------------------------------------- the bookings */
+
+.bookings li {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border-radius: 5px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: 0.85rem;
+}
+.bookings .reference { color: var(--accent-ink); font-weight: 600; }
+.bookings .patient { font-weight: 500; }
+.bookings .what { flex: 1; min-width: 8rem; color: var(--ink-soft); }
+.bookings .when, .bookings .room { color: var(--ink-faint); font-size: 0.78rem; }
+
+/* ------------------------------------------------------------------ foot */
+
+footer { padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 0; }
+footer p { margin: 0; color: var(--ink-faint); font-size: 0.82rem; max-width: 78ch; }
+footer code { font-family: var(--mono); font-size: 0.86em; }
+footer .by { margin-top: 0.5rem; }
+
+@media (max-width: 62rem) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  .said { max-height: 20rem; }
+}
