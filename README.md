@@ -15,6 +15,16 @@ that is a decision rather than a stage it has not reached yet.
 Check what you have with `python --version`. On Windows the command is often
 `py` rather than `python`; on Linux and macOS it may be `python3`.
 
+**Measured, not estimated:** the five pinned packages bring **43 distributions**
+in with them and take **49 MB** on disk, installed once from PyPI. That is the
+entire network cost — nothing reaches out again afterwards, at any point, for
+any reason.
+
+**Install into a virtual environment** — `python -m venv .venv`, then activate
+it — so that undoing all of this is deleting `.venv/` and the clone. Nothing
+here writes outside its own folder, registers a service, or touches anything
+global.
+
 ## Running it
 
 ```
@@ -25,10 +35,10 @@ pip install -r requirements.txt
 python -m tools.talk
 ```
 
-Four packages are installed, all of them pinned in
+Five packages are installed, all of them pinned in
 [requirements.txt](requirements.txt): LangGraph for the conversation graph,
-FastAPI and uvicorn for the HTTP service, and httpx for the tests. Then type at
-it:
+FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests.
+It said four until somebody counted the file. Then type at it:
 
 ```
   agent : You are through to Example Clinic. What can I book for you?
