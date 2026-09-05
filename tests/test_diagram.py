@@ -76,5 +76,27 @@ class TheFilesTheReadmePointsAt(unittest.TestCase):
                 )
 
 
+class TheCountItQuotes(unittest.TestCase):
+    def test_there_are_as_many_tests_as_it_says(self) -> None:
+        # "# 144 tests" is a measurement, and a measurement typed into prose
+        # stops being one the moment somebody adds a file. Counting them back
+        # costs four lines and leaves the number either right or failing, which
+        # are the only two states worth having: the alternative is a README
+        # that sounds precise about a repository it stopped reading.
+        here = Path(__file__).resolve().parents[1]
+        said = re.search(r"# (\d+) tests", readme())
+        assert said is not None, "the README no longer says how many tests there are"
+
+        found = unittest.TestLoader().discover(
+            start_dir=str(here / "tests"), top_level_dir=str(here)
+        ).countTestCases()
+
+        self.assertEqual(
+            int(said.group(1)),
+            found,
+            f"the README says {said.group(1)} tests and this run found {found}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

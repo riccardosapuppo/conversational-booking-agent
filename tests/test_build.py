@@ -7,19 +7,43 @@ where an off-by-one puts somebody in a room on a Sunday.
 
 The clinic that ships with the repository is tested here too, because it is
 loaded by the demonstration, by the transcripts and by the service, and a
-typo in it fails all three at once.
+typo in it fails all three at once. So is the paragraph the README writes
+about it: a figure quoted in prose has nothing holding it to the file it was
+measured from, and this one had drifted.
 """
 
 from __future__ import annotations
 
+import json
+import re
 import unittest
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 from booking_agent.clinic.build import default, from_dict, sessions_from
+from booking_agent.clinic.diary import Slot
 
 
 MONDAY = date(2026, 9, 7)
 BEFORE = datetime(2026, 9, 4, 9, 0)
+
+HERE = Path(__file__).resolve().parents[1]
+
+#: The sentence in the README that quotes figures measured out of this clinic.
+#:
+#: Matched against the prose with its line breaks flattened, so rewrapping the
+#: paragraph costs nothing and rewording the claim costs a failure. That is why
+#: it is one pattern rather than four loose numbers: a check that still matches
+#: after the sentence has changed is a check of nothing, and these are numbers
+#: that go stale without anybody touching them.
+QUOTED = re.compile(
+    r"the MRI room is open \*\*(?P<opens>\d\d:\d\d) to (?P<closes>\d\d:\d\d)\*\* "
+    r"on a Monday, one unbroken stretch, and across it the diary offers "
+    r"the \*\*(?P<knee_minutes>\d+)\*\*-minute knee scan "
+    r"\*\*(?P<knee_starts>\d+)\*\* start times and "
+    r"the \*\*(?P<spine_minutes>\d+)\*\*-minute whole spine "
+    r"\*\*(?P<spine_starts>\d+)\*\*\."
+)
 
 
 class LayingOutTheWeek(unittest.TestCase):
@@ -134,9 +158,11 @@ class TheClinicThatShipsWithThis(unittest.TestCase):
 
     def test_every_exam_can_actually_be_offered_a_time(self) -> None:
         # A room that does it is not enough: the room has to be open for long
-        # enough. The spine MRI is deliberately longer than some of the
-        # sessions, and an exam that fits in none of them is not an awkward
-        # case to demonstrate — it is an exam nobody can book.
+        # enough, and open that long before it closes. The spine MRI is the
+        # longest thing in the catalogue and loses the end of every session to
+        # that, which is the awkward case worth having. An exam that outgrew a
+        # session outright would not be an awkward case at all — it would be
+        # an exam nobody can book.
         clinic = default(starting=MONDAY)
         fortnight = [MONDAY + timedelta(days=n) for n in range(14)]
 
@@ -168,6 +194,129 @@ class TheClinicThatShipsWithThis(unittest.TestCase):
         self.assertTrue(
             any(not exam.bookable for exam in clinic.catalogue),
             "something should still be beyond what the agent may book",
+        )
+
+
+class TheFiguresTheReadmeQuotes(unittest.TestCase):
+    """The README's paragraph about this clinic, worked out again from it.
+
+    Its figures were true the day they were typed, which is the whole trouble:
+    prose cannot notice that a session moved or an exam grew, and the paragraph
+    that says "measured" is the one nobody measures twice. This one said the
+    spine MRI was longer than some of the sessions in the diary until somebody
+    counted — seventy-five minutes against a shortest session of three hours,
+    which no version of this file has ever been close to.
+
+    So the numbers are read back out of the README and worked out here. The
+    claims either side of them are checked too — one room, one unbroken stretch
+    of it — because a count is only as honest as the sentence carrying it.
+    """
+
+    def setUp(self) -> None:
+        self.clinic = default(starting=MONDAY)
+
+    def quoted(self) -> dict[str, str]:
+        prose = " ".join((HERE / "README.md").read_text(encoding="utf-8").split())
+        found = QUOTED.search(prose)
+
+        assert found is not None, (
+            "the README no longer contains the sentence these figures belong to: "
+            "read what it claims now before loosening this pattern, because the "
+            "reason it exists is that the sentence before it was wrong."
+        )
+        return found.groupdict()
+
+    def offered(self, minutes: int) -> list[Slot]:
+        """Every start the MRI room has on the Monday, for something this long."""
+        return list(
+            self.clinic.diary.free(modality="MR", minutes=minutes, day=MONDAY, now=BEFORE)
+        )
+
+    def test_the_room_is_open_when_the_readme_says_it_is(self) -> None:
+        # Taken from the diary rather than from the sessions in the file: what
+        # the sentence promises a reader is time that could be offered, and a
+        # session nothing is ever offered in would still be in the file.
+        quoted = self.quoted()
+        quarters = self.offered(15)
+
+        self.assertEqual(
+            {slot.room for slot in quarters}, {"MR1"}, "the README says the MRI room, singular"
+        )
+        self.assertEqual(quarters[0].starts.strftime("%H:%M"), quoted["opens"])
+        self.assertEqual(quarters[-1].ends.strftime("%H:%M"), quoted["closes"])
+
+        # "One unbroken stretch". A gap in the middle leaves the opening and
+        # the closing time both correct and the sentence between them false,
+        # which is the shape of failure this class is here for.
+        self.assertEqual(
+            [
+                after.starts
+                for before, after in zip(quarters, quarters[1:])
+                if after.starts != before.starts + timedelta(minutes=15)
+            ],
+            [],
+            "the MRI room's Monday is not one stretch any more",
+        )
+
+    def test_the_counts_are_what_the_diary_would_offer(self) -> None:
+        quoted = self.quoted()
+
+        for code, minutes, starts in (
+            ("MRI-KNEE", "knee_minutes", "knee_starts"),
+            ("MRI-SPINE", "spine_minutes", "spine_starts"),
+        ):
+            exam = self.clinic.catalogue.get(code)
+            offered = len(self.offered(exam.minutes))
+            with self.subTest(exam=code):
+                self.assertEqual(
+                    str(exam.minutes),
+                    quoted[minutes],
+                    f"the README calls {code} a {quoted[minutes]}-minute exam; "
+                    f"data/clinic.json says {exam.minutes}",
+                )
+                self.assertEqual(
+                    offered,
+                    int(quoted[starts]),
+                    f"the README says {code} is offered {quoted[starts]} start times "
+                    f"on the Monday; the diary offers {offered}",
+                )
+
+    def test_noon_is_free_and_will_not_take_the_spine(self) -> None:
+        # The line the two counts are there to support, and the reason length
+        # is a control on the console rather than an assumption: the room is
+        # free at noon, and free is not the same as free for long enough.
+        noon = datetime.combine(MONDAY, time(12, 0))
+        knee = self.clinic.catalogue.get("MRI-KNEE")
+        spine = self.clinic.catalogue.get("MRI-SPINE")
+
+        self.assertIn(noon, [slot.starts for slot in self.offered(knee.minutes)])
+        self.assertNotIn(noon, [slot.starts for slot in self.offered(spine.minutes)])
+
+    def test_the_note_in_the_file_says_no_more_than_this(self) -> None:
+        # data/clinic.json makes the same claim in prose, in the `note` beside
+        # the length it rests on, and nothing loads that field: it is dropped
+        # on the way into an Exam and read only by whoever opens the file. It
+        # was the second of the three places the old sentence was wrong in, and
+        # the three agreeing with one another was what made it look measured.
+        described = json.loads((HERE / "data" / "clinic.json").read_text(encoding="utf-8"))
+        note = next(row["note"] for row in described["exams"] if row["code"] == "MRI-SPINE")
+        spine = self.clinic.catalogue.get("MRI-SPINE")
+        stingiest = len(self.offered(spine.minutes))
+
+        self.assertIn(
+            "longest", note.lower(), "the note has been reworded past what is checked here"
+        )
+        self.assertEqual(spine.minutes, max(exam.minutes for exam in self.clinic.catalogue))
+
+        against = {
+            exam.code: len(self.offered(exam.minutes))
+            for exam in self.clinic.catalogue
+            if exam.modality == spine.modality and exam.code != spine.code
+        }
+        self.assertTrue(
+            all(stingiest < count for count in against.values()),
+            f"the spine gets {stingiest} starts on the Monday against {against}: "
+            "it is not the one its room is stingiest with any more",
         )
 
 

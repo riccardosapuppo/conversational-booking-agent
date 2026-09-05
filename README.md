@@ -257,7 +257,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 139 tests
+python -m unittest discover -s tests -t .   # 144 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
 python -m tools.screenshots                 # retakes the pictures above
@@ -316,8 +316,16 @@ the thing worth keeping, and the diary already has it.
 `data/clinic.json` describes a clinic that does not exist. It is deliberately
 untidy, because a tidy catalogue demonstrates nothing: an exam that needs both
 a side and a contrast, two that answer to "knee", one the agent may not book,
-one longer than some of the sessions in the diary, one modality with a single
-room. [A test](tests/test_build.py) fails if somebody tidies it up.
+one long enough that a free room is not enough for it, one modality with a
+single room. [A test](tests/test_build.py) fails if somebody tidies it up.
+
+**Long enough, measured:** the MRI room is open **09:00 to 13:00** on a Monday,
+one unbroken stretch, and across it the diary offers the **30**-minute knee
+scan **15** start times and the **75**-minute whole spine **12**. Noon is free
+in an empty diary and will not take the spine — being free is not the question,
+being free for long enough is. The same test works those figures out again from
+the file and fails when this paragraph stops agreeing with them: a number
+copied into prose is right on the day it is copied.
 
 Replace it with your own and pass it to either entry point with `--clinic`.
 
