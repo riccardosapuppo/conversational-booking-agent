@@ -9,19 +9,19 @@ to stop and fetch a person.
 ## Before you start
 
 **Python 3.10 or newer**, and nothing else. No database, no message broker, no
-container, no account, no API key, and no model — the agent runs on rules, and
-that is a decision rather than a stage it has not reached yet.
+container, no account, no API key, and no model: the agent runs on rules, which
+is a decision rather than a stage it has not reached yet.
 
 Check what you have with `python --version`. On Windows the command is often
 `py` rather than `python`; on Linux and macOS it may be `python3`.
 
 **Measured, not estimated:** the five pinned packages bring **43 distributions**
 in with them and take **49 MB** on disk, installed once from PyPI. That is the
-entire network cost — nothing reaches out again afterwards, at any point, for
+entire network cost: nothing reaches out again afterwards, at any point, for
 any reason.
 
-**Install into a virtual environment** — `python -m venv .venv`, then activate
-it — so that undoing all of this is deleting `.venv/` and the clone. Nothing
+**Install into a virtual environment** (`python -m venv .venv`, then activate
+it) so that undoing all of this is deleting `.venv/` and the clone. Nothing
 here writes outside its own folder, registers a service, or touches anything
 global.
 
@@ -45,16 +45,16 @@ side* is the conversation and nothing else, because that is all somebody
 ringing up has. The *clinic's side* is the catalogue, the diary and what has
 been booked, because that is what the people answering are looking at while
 they talk. The two used to sit next to each other on one screen, which read
-well and was nobody's view of anything — a caller cannot see the diary, and the
-people with the diary open are not the ones being spoken to. Which side you are
-on is in the address, `#caller` or `#desk`, so a reload leaves you where you
-were and a link opens where you sent it.
+well and was nobody's view of anything, because a caller cannot see the diary
+and the people with the diary open are not the ones being spoken to. Which side
+you are on is in the address, `#caller` or `#desk`, so a reload leaves you where
+you were and a link opens where you sent it.
 
 Crossing over is the argument. An agent offering "Monday at 09:15" is only
 interesting if you can go and look at the diary, see that 09:15 was free, book
-it, and watch it stop being free — and the exam list is searched with **the
-agent’s own search**, not a filter written for the screen, which would be a
-second thing to keep in step and the one that quietly stopped agreeing.
+it, and watch it stop being free. The exam list is searched with **the agent’s
+own search**, not a filter written for the screen, which would be a second thing
+to keep in step and the one that quietly stopped agreeing.
 
 **Nothing on that page books anything.** Every booking goes through the
 conversation, which is where the rules that guard it live; a screen with its own
@@ -124,8 +124,8 @@ it is what a switchboard is handed to speak. Both are further down.
 
 **It does not guess.** Two exams answer to "knee", so it asks which. An
 exam that has a left and a right is not booked without one. Not understanding
-is an answer, and it is the answer that ends with a person on the line — an
-agent that guesses produces a confident booking for the wrong thing, and the
+is an answer, and it is the answer that ends with a person on the line, because
+an agent that guesses produces a confident booking for the wrong thing and the
 caller finds out on the day.
 
 **A slot offered is a slot held.** A conversation takes minutes. Between "there
@@ -134,8 +134,8 @@ partner and finds their prescription. Without a hold, two people are told about
 the same slot and one of them arrives to find it gone.
 
 **It knows what it may not do.** CT angiography is in the catalogue so it can be
-found and explained, not hidden so the clinic looks as if it does not do it —
-and it is handed to somebody who can arrange it, with the reason. Somebody
+found and explained, not hidden so the clinic looks as if it does not do it, and
+it is handed to somebody who can arrange it, with the reason. Somebody
 ringing about an appointment they already have gets a person, because the agent
 has no way to know they are who they say they are.
 
@@ -145,16 +145,16 @@ reason and a note the person taking over can read before they say hello. "The
 agent gave up" is not something anybody can act on.
 
 **A reference is for the person it is given to.** Two groups of three, from an
-alphabet with no O or I — heard as zero and one — no 0, 1, 5 or 8 — heard back
-as O, I, S and B — and no vowels, so six random characters cannot spell
-anything the clinic would rather read out. Out loud it is spelled and then
-repeated. It used to be the first twelve characters of a uuid: unique, correct,
-and unusable by the person it was for.
+alphabet with no O or I (heard as zero and one), no 0, 1, 5 or 8 (heard back as
+O, I, S and B), and no vowels, so six random characters cannot spell anything
+the clinic would rather read out. Out loud it is spelled and then repeated. It
+used to be the first twelve characters of a uuid: unique, correct, and unusable
+by the person it was for.
 
 ## The console
 
 Until it existed, the only way to see this agent work was to install Python and
-type at a prompt — which meant most people who might want to see it never would.
+type at a prompt, which meant most people who might want to see it never would.
 It is the same agent over the same endpoints, with the clinic's side one switch
 away from the conversation. Three things on the two of them are worth looking
 at.
@@ -166,7 +166,7 @@ is a control rather than an assumption, and changing it changes what is offered.
 ![The diary, showing what is free for an hour, by room and by day](docs/diary.png)
 
 **What it has booked, and what that cost the diary.** Book something on the
-caller's side and it appears here — and the time it took stops being offered.
+caller's side and it appears here; the time it took stops being offered.
 
 ![A completed booking listed with its reference, patient, exam, time and room](docs/booked.png)
 
@@ -183,22 +183,22 @@ in — but the console read straight past it: the input went on inviting a
 sentence, the service refused it, and a bubble appeared with nothing in it at
 all. So the input closes when the conversation does, the page says which ending
 it was, and "start again" is the way on. And whatever comes back that is not a
-reply — a refusal, a fallen network — is what the waiting bubble is filled with,
-in the service's own words. A bubble that promises words and produces none says
-the agent had nothing to say, which was never true.
+reply (a refusal, a fallen network) fills the waiting bubble, in the service's
+own words. A bubble that promises words and produces none says the agent had
+nothing to say, which was never true.
 
 One more thing about that bubble: it goes up the moment a message is sent, and
 the reply is worked out in single milliseconds, so it was being filled inside
 the same frame it was drawn in and the wait was never once visible. It now
-stands for half a second at the least — a floor and not a delay, on every route
+stands for half a second at the least (a floor and not a delay) on every route
 into the transcript: the request leaves immediately and a slower answer is never
 held back for it.
 
 ### The telephone, out loud
 
 The first question this page got asked was what the difference between *chat*
-and *the telephone* was supposed to be. That question was the answer: in
-`voice.py` the difference is substantial — a numbered list becomes sentences
+and *the telephone* was supposed to be. That question was the answer. In
+`voice.py` the difference is substantial: a numbered list becomes sentences
 because "one close paren" is not a word, `09:00` becomes "nine o'clock in the
 morning" because "seven" on its own gets somebody to a clinic twelve hours
 early, and the reference is spelled out and then spelled again because there is
@@ -209,8 +209,8 @@ evidence was not.
 
 So on the telephone **the reply is spoken**, in one of the machine's own
 voices. `speechSynthesis` is in the browser already: no key, no account, no
-request and no microphone — nothing is listened to and nothing leaves the
-machine, and the page says so where the choice is made. What was a caption is
+request and no microphone. Nothing is listened to, nothing leaves the machine,
+and the page says so where the choice is made. What was a caption is
 now a thing you hear, including the reference said twice, which is the one part
 of `voice.py` that reads as fussy on a screen and is obviously right in the ear.
 
@@ -223,18 +223,18 @@ Four details, because the naive version of this is worse than not doing it:
   reload is that insult twice. The choice is kept per browser.
 - **It never speaks first.** Browsers refuse speech until a page has been
   interacted with, so a greeting spoken on arrival would be swallowed without a
-  word — a feature that half works, which is worse than one that is off. The
-  page therefore only ever speaks as the direct result of something pressed:
+  word: a feature that half works is worse than one that is off. The page
+  therefore only ever speaks as the direct result of something pressed:
   choosing the telephone, sending a sentence, starting again. That is not a
   workaround for the policy, it is the behaviour you would want anyway.
 - **It stops when the conversation moves on.** A new sentence cuts off whatever
-  was still being said — when the sentence is sent, not when the reply lands,
+  was still being said, when the sentence is sent, not when the reply lands,
   because the alternative is the agent talking over the caller.
 - **Where there is no `speechSynthesis` there is no sound control**, no
   promise of one, and a page otherwise exactly as it was.
 
-The voices arrive asynchronously — `getVoices()` is empty on the first call in
-every browser tried here — so the choice is made again on `voiceschanged` and
+The voices arrive asynchronously (`getVoices()` is empty on the first call in
+every browser tried here), so the choice is made again on `voiceschanged` and
 nothing waits for it: with no voice yet chosen the utterance carries a language
 and the platform picks. A page that held its tongue until the list arrived would
 be silent for exactly the first reply anybody hears.
@@ -250,11 +250,11 @@ silencing it survives a reload.
 **Listening is not here, and that is a decision.** The browser can do
 recognition too, and it was tried: it works. But it goes through an external
 service and wants the microphone, and this page's standing promise is that
-nothing it does reaches the network or records anything — buying "it feels like
+nothing it does reaches the network or records anything. Buying "it feels like
 a phone call" with the one claim that makes the demonstration trustworthy is a
-bad trade. The ear belongs to the switchboard — *Down a telephone line*,
-below — where it is a recogniser the clinic has chosen and paid for rather
-than somebody's browser quietly uploading a waiting room.
+bad trade. The ear belongs to the switchboard (*Down a telephone line*, below),
+where it is a recogniser the clinic has chosen and paid for rather than
+somebody's browser quietly uploading a waiting room.
 
 ### What is reading, said on the screen
 
@@ -262,7 +262,7 @@ The first question this project gets asked is how it works with no model
 connected. The answer is a good one and it is further down: the reader is rules,
 deliberately, because that is what makes the thing runnable. But it lived
 entirely in prose. Somebody who opened the console, typed a sentence and got a
-sensible answer back had no way at all to tell what had understood it — an
+sensible answer back had no way at all to tell what had understood it, an
 ambiguity that flattered this project and cost it nothing, which is the kind
 worth removing.
 
@@ -271,8 +271,8 @@ lives in, and opens onto the seam itself: the `Reader` protocol, the methods it
 requires, and the fact that a model-backed reader is a class with that one
 method, handed in at start up. All of it comes from `GET /reading`, which
 answers from the object actually doing the reading and counts the protocol's
-methods off the protocol — "one method wide" is a claim, and a sentence cannot
-notice a second method being added to a class.
+methods off the protocol, because "one method wide" is a claim and a sentence
+cannot notice a second method being added to a class.
 
 ![The status line across the header: reading with Rules, from booking_agent/conversation/reading.py, opened out to show that the Reader protocol is one method wide](docs/reading.png)
 
@@ -288,22 +288,22 @@ shown, not staged.
 
 The page offers a handful of sentences to try, each labelled with what it
 demonstrates. That is a promise, and a promise on a page is worth what the check
-behind it is worth — so each button carries a `data-expect`, and
+behind it is worth, so each button carries a `data-expect`, and
 [a test](tests/test_looking.py) says its sentence to the real agent and fails if
 what comes back is not what the label claims.
 
 That is not a precaution. The first version of that list had a button labelled
 *"something it must not answer"* whose sentence the agent answered quite happily
-— it has no rule about clinical questions and never claimed one — and another
+(it has no rule about clinical questions and never claimed one), and another
 naming an exam this clinic does not have. Both looked entirely convincing until
 somebody pressed them, and a screenshot is what pressed them.
 
 ## Down a telephone line
 
 The system this came out of answers a telephone. Somebody dials a number, a
-switchboard picks up, and the agent is at the other end of it — and that, the
-part with the most work in it, was the part a visitor to this repository could
-see nothing of at all.
+switchboard picks up, and the agent is at the other end of it. That, the part
+with the most work in it, was what a visitor to this repository could see
+nothing of at all.
 
 Showing it does not need a number. It needs the **messages**.
 
@@ -321,7 +321,7 @@ booking_agent/telephony/
 
 **The direction of the dependency is the whole argument.** This is a *client*
 of the service, standing exactly where the console stands and making the same
-three requests it makes — start a call, say something into it, hang up. There
+three requests it makes: start a call, say something into it, hang up. There
 is no private entrance into the agent, because a second way in is always the
 one nobody tested. Adding a telephone changed no file that was here before it.
 
@@ -335,8 +335,8 @@ believing this paragraph.
 `data/telephony/one-whole-call.json` is a call as a switchboard sends it: the
 ring, four things a caller said, one stretch where they said nothing at all,
 and the handset going down. The checks replay it through the adapter and then
-look at **the diary** — an appointment for the person who rang, at the time
-they picked — because a check written against the adapter's own output would
+look at **the diary** (an appointment for the person who rang, at the time they
+picked), because a check written against the adapter's own output would
 prove the translation talks, not that it books. Nothing dials, nothing reaches
 the network, and it runs on any machine for ever.
 
@@ -365,9 +365,9 @@ python -m tools.telephone --json   every message in full
 
 That is `voice.py` again, unchanged, and it is the reason the channel matters:
 the switchboard is handed the reply already worded for somebody who cannot look
-back. Nothing in the adapter has an opinion about wording — it has no sentence
-of its own anywhere, which is why the silence in the middle is answered by
-**asking the agent's own last question again**, once, and then ending the call.
+back. The adapter has no opinion about wording and no sentence of its own
+anywhere, which is why the silence in the middle is answered by **asking the
+agent's own last question again**, once, and then ending the call.
 
 **Silence is not a sentence**, and neither is a transcript the switchboard says
 it is unsure of. Neither is sent to the agent. A guess pushed into a booking is
@@ -463,13 +463,13 @@ graph TD;
 	offer --> __end__;
 ```
 
-Drawn by `python -m tools.diagram`, from the graph rather than from memory —
+`python -m tools.diagram` draws it from the graph, not from memory, and
 [a test](tests/test_diagram.py) fails if a node is added here and forgotten
 there, because a hand-drawn picture of a graph is accurate exactly once.
 
 Every node ends the turn. The graph is entered once per message and not run to
 completion, because a booking conversation does not finish on its own: it
-waits, and waiting is its normal state. What each node does is one thing —
+waits, and waiting is its normal state. What each node does is one thing:
 `clarify` asks for exactly one missing piece, `hold` keeps a slot, `handover`
 writes the note the person taking over will read.
 
@@ -501,14 +501,14 @@ python -m tools.screenshots                 # retakes the pictures above
 ```
 
 `tools.screenshots` drives **Microsoft Edge**, already on this machine, through
-Playwright — `pip install -r requirements-checks.txt`. It is not in CI, which
+Playwright (`pip install -r requirements-checks.txt`). It is not in CI, which
 has no browser, and it says so and stops rather than reporting a success it did
 not earn. It is also what pressed the buttons that turned out to be lying.
 
 **16 of those tests need a browser.** Everything else here can be checked in
 Python, but a console that reads a correct answer wrongly cannot: `over` came
 back on every reply, the page stepped over it, and a call that had been handed
-to a person still offered somewhere to type — so the service refused the next
+to a person still offered somewhere to type, so the service refused the next
 sentence, as it should, and the page put an empty bubble on the screen. Nothing
 readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
@@ -522,7 +522,7 @@ to go quietly wrong.
 
 The tests were written alongside the code they test, which makes them good at
 saying it still does what it did and poor at saying it does what a caller
-needs. So `data/conversations/` holds whole calls — one caller line per line —
+needs. So `data/conversations/` holds whole calls (one caller line per line),
 and the tool reports only how each one ended: booked, handed to a person with a
 reason, answered, or **stuck**, which means the agent went round in circles.
 
@@ -548,7 +548,7 @@ Localhost only, with no default that reaches further.
 | `GET /calls/{call}` | where it has got to, without moving it on |
 | `DELETE /calls/{call}` | hang up |
 
-And the clinic, read-only — what the console draws on the clinic's side:
+And the clinic, read-only, which is what the console draws on the clinic's side:
 
 | | |
 |---|---|
@@ -578,13 +578,13 @@ and both clients do exactly them: the console, and the telephony adapter.
 ## The clinic
 
 `data/clinic.json` describes a clinic that does not exist. **Kesterby
-Diagnostic Centre is invented** — the name, the address, the rooms and every
+Diagnostic Centre is invented**: the name, the address, the rooms and every
 price in it. It is named like a real clinic rather than "Example Clinic" for one
 reason: a placeholder name makes everything standing next to it look like a
 placeholder too, and the exams and the diary here are not. That reason says
 nothing about which language it should be in, and for a while it was in Italian
-while every word around it — the console, the replies, this file — was in
-English, which made the one name on the screen the one thing that read as
+while every word around it (the console, the replies, this file) was in English,
+which made the one name on the screen the one thing that read as
 imported from somewhere else. It is deliberately untidy, because a tidy
 catalogue demonstrates nothing: an exam that needs both a side and a contrast,
 two that answer to "knee", one the agent may not book, one long enough that a
@@ -593,7 +593,7 @@ free room is not enough for it, one modality with a single room. [A test](tests/
 **Long enough, measured:** the MRI room is open **09:00 to 13:00** on a Monday,
 one unbroken stretch, and across it the diary offers the **30**-minute knee
 scan **15** start times and the **75**-minute whole spine **12**. Noon is free
-in an empty diary and will not take the spine — being free is not the question,
+in an empty diary and will not take the spine: being free is not the question,
 being free for long enough is. The same test works those figures out again from
 the file and fails when this paragraph stops agreeing with them: a number
 copied into prose is right on the day it is copied.
@@ -602,8 +602,8 @@ Replace it with your own and pass it to either entry point with `--clinic`.
 
 ## What it does not do
 
-No model and no database — a restart forgets the diary. Reading is rules, which
-is enough for the sentences in `data/conversations/` and will not survive
+No model and no database, so a restart forgets the diary. Reading is rules,
+which is enough for the sentences in `data/conversations/` and will not survive
 everything a real switchboard hears; the `Reader` protocol in `reading.py` is
 one method wide, so a model-backed reader is a new class and no change to
 anything else. That was the point of putting the boundary there.
