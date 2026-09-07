@@ -1,0 +1,154 @@
+{
+  "readme": "One telephone call, as a switchboard sends it: the messages a jambonz WebSocket application receives, from the call arriving to the caller putting the handset down. Nothing here is a recording of a real call and nothing in it identifies anybody — the identifiers are invented, and the two numbers are from the range reserved for fiction, which belongs to nobody. It is a fixture: the checks replay it through the adapter and expect a real booking in the diary at the end, which is how the translation is shown to be right without a telephone line.",
+
+  "shape": "Message shapes and verb properties follow the published jambonz documentation for the WebSocket call-control API. Where a field's shape could not be checked against it, the field is left out rather than guessed at, and the README names what is missing: the SIP envelope on a new session, the vendor-specific block a recogniser attaches to a transcript, and everything to do with digits. The notes below sit outside the messages for the same reason — a message here is a message, with nothing added to it.",
+
+  "call": [
+    {
+      "note": "The call arrives. This must be answered within five seconds or it is dropped.",
+      "message": {
+        "type": "session:new",
+        "msgid": "5RkQ2mTpVn8bYwCdE3fGhJ",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "account_sid": "0d6c1b9e-3a52-49f8-b7c4-1e8a5d2f0c63",
+          "application_sid": "9f2e7c48-6b31-4a0d-85e9-3c74b1a6f0d2",
+          "direction": "inbound",
+          "from": "+441632960541",
+          "to": "+441632960987",
+          "caller_name": "",
+          "call_id": "3f9a7c21-5e84-4b06-a3d2-8c1704e6b95f",
+          "call_status": "trying",
+          "sip_status": 100
+        }
+      }
+    },
+
+    {
+      "note": "What the caller said, as the switchboard heard it. This is the whole of the audio anything here ever sees.",
+      "message": {
+        "type": "verb:hook",
+        "msgid": "7TzR4nUqWp0dAyEfG5hJkM",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "hook": "/said",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "reason": "speechDetected",
+          "speech": {
+            "language_code": "en-GB",
+            "channel_tag": 1,
+            "is_final": true,
+            "alternatives": [
+              {
+                "confidence": 0.9142,
+                "transcript": "I need an MRI of the left knee without contrast"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "note": "The caller went to find their prescription and said nothing at all. Nothing is sent to the agent; the question is asked again, in the agent's own words.",
+      "message": {
+        "type": "verb:hook",
+        "msgid": "8UaS5oVrXq1eBzFgH6iKlN",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "hook": "/said",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "reason": "timeout"
+        }
+      }
+    },
+
+    {
+      "note": "The name to put it under.",
+      "message": {
+        "type": "verb:hook",
+        "msgid": "9VbT6pWsYr2fCaGhI7jLmO",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "hook": "/said",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "reason": "speechDetected",
+          "speech": {
+            "language_code": "en-GB",
+            "channel_tag": 1,
+            "is_final": true,
+            "alternatives": [
+              {
+                "confidence": 0.8837,
+                "transcript": "Mario Rossi"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "note": "Picking one of the times the agent read out. On a telephone they are sentences rather than a numbered list, which is why an answer like this one has to be understood by position.",
+      "message": {
+        "type": "verb:hook",
+        "msgid": "AWcU7qXtZs3gDbHiJ8kMnP",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "hook": "/said",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "reason": "speechDetected",
+          "speech": {
+            "language_code": "en-GB",
+            "channel_tag": 1,
+            "is_final": true,
+            "alternatives": [
+              {
+                "confidence": 0.9563,
+                "transcript": "the first one"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "note": "Confirming it. The answer to this one is the booking, so what goes back is the reference said out loud and then the call ending.",
+      "message": {
+        "type": "verb:hook",
+        "msgid": "BXdV8rYuAt4hEcIjK9lNoQ",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "hook": "/said",
+        "data": {
+          "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+          "reason": "speechDetected",
+          "speech": {
+            "language_code": "en-GB",
+            "channel_tag": 1,
+            "is_final": true,
+            "alternatives": [
+              {
+                "confidence": 0.9781,
+                "transcript": "yes"
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "note": "The handset goes down. Nothing is sent back: a status notification is not acknowledged.",
+      "message": {
+        "type": "call:status",
+        "msgid": "CYeW9sZvBu5iFdJkL0mOpR",
+        "call_sid": "4b1f6a3c-2d90-4e5a-9c11-7f6e2a0b8d45",
+        "data": {
+          "call_status": "completed"
+        }
+      }
+    }
+  ]
+}

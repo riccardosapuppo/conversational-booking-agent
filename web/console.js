@@ -12,10 +12,22 @@
  * would be the path nobody tested.
  */
 
+import * as aloud from './saying.js';
+
 const $ = (id) => document.getElementById(id);
 
 /** The call in progress, if there is one. */
 let call = null;
+
+/**
+ * Whether this call is being spoken rather than typed.
+ *
+ * Taken from the channel when the call starts and not read off the control
+ * afterwards, for the same reason the service takes the channel once: the call
+ * that is happening was started as one thing or the other, and a control
+ * somebody is halfway through changing is not the answer to what it is.
+ */
+let onTheTelephone = false;
 
 /**
  * Whether that call has finished.
@@ -220,6 +232,22 @@ function fill(words, text) {
 }
 
 /**
+ * A reply, into its bubble and out of the speakers if this is a telephone call.
+ *
+ * Both from one place, so the words heard are the words on the screen and
+ * there is nowhere for the two to drift apart. Only what the agent said goes
+ * through here: a refused request and a service that never answered are this
+ * page explaining itself, and a page reading its own error messages aloud in
+ * the agent's voice would be putting words in its mouth.
+ */
+function fillAndSay(words, reply, { speaking = true } = {}) {
+  const said = saidBy(reply);
+
+  fill(words, said);
+  if (onTheTelephone && speaking) aloud.say(said);
+}
+
+/**
  * The words of a reply — or an account of why there are none.
  *
  * `reply.reply` was read straight into the bubble, which is right up to the
@@ -338,9 +366,21 @@ function showStage(reply) {
  * `clearing` is false in one place only: a call let go of after an hour, where
  * the note saying so is the last thing in the transcript and wiping it would
  * leave somebody looking at a greeting they did not ask for.
+ *
+ * `answering` says whether somebody pressed something to get here. It is false
+ * exactly once — the call this page starts on its own on the way in — and that
+ * greeting is not spoken. Browsers refuse speech until a page has been
+ * interacted with, so a page that tried would be a page whose first reply is
+ * silently dropped; and a page that speaks the moment it loads is one somebody
+ * closes. Both of those are answered by the same rule, which is that this
+ * never speaks first.
  */
-async function startACall({ clearing = true } = {}) {
+async function startACall({ clearing = true, answering = true } = {}) {
   if (clearing) $('said').replaceChildren();
+
+  // Whatever was being said belonged to the call that has just gone.
+  aloud.hush();
+  onTheTelephone = $('channel').value === 'voice';
 
   // Whatever the last call did, this one has not done it yet: the ending, and
   // the closed input under it, belong to the call that ended and not to the
@@ -370,7 +410,7 @@ async function startACall({ clearing = true } = {}) {
     const reply = await response.json();
 
     call = reply.call;
-    fill(first, saidBy(reply));
+    fillAndSay(first, reply, { speaking: answering });
     showStage(reply);
     return reply;
   } catch {
@@ -391,6 +431,13 @@ async function say(words) {
   // comes through this one door, and a page that guards only the door it
   // remembers is a page that will grow a second one.
   if (over) return;
+
+  // Whatever the agent was still saying is about the message before this one.
+  // Said down a telephone that would be the agent talking over the caller, and
+  // it is the reason this is here rather than at the point the reply arrives:
+  // waiting until then would leave half a sentence playing while somebody has
+  // already moved on.
+  aloud.hush();
 
   // Before the bubbles, so a first message does not appear above the greeting
   // it is answering.
@@ -430,7 +477,7 @@ async function say(words) {
     }
 
     reply = await response.json();
-    fill(answer, saidBy(reply));
+    fillAndSay(answer, reply);
   } catch {
     fill(answer, 'The service did not answer. Nothing was said to the agent.');
     return;
@@ -474,11 +521,49 @@ $('again').addEventListener('click', async () => {
   await Promise.all([showDiary(), showBookings()]);
 });
 
+// ─────────────────────────────────────────────────────── saying it out loud
+
+/**
+ * What the channel means, and where the sound control belongs.
+ *
+ * Both here rather than in the handler that changes the channel, because the
+ * page has to be right about this on the way in as well — and a sentence
+ * written once in a handler is a sentence that is wrong until somebody touches
+ * the control it is written in.
+ *
+ * The difference between the two channels used to be a caption. Now the words
+ * for the telephone are said out loud, and a caption is not needed to explain
+ * a reference being spelled and then spelled again — but the caption still has
+ * to say where the voice comes from, because a page that starts speaking owes
+ * somebody an account of what it is doing with a microphone. It is not using
+ * one. Nothing is listened to, nothing is recorded, and nothing leaves the
+ * machine: the voices are the ones already installed on it.
+ */
+function channelSays() {
+  const telephone = $('channel').value === 'voice';
+
+  $('sound').hidden = !telephone || !aloud.can;
+
+  $('channel-says').textContent = !telephone
+    ? 'In chat the times are a numbered list, because somebody can read them back.'
+    : aloud.can
+      ? 'On the telephone the reply is said out loud, in one of this machine’s own voices — a time is spoken rather than listed, and a reference is spelled out and then spelled again, because somebody is writing it down. Nothing is listened to and nothing leaves this machine.'
+      : 'On the telephone a time is spoken rather than listed, and a reference is spelled out twice — because somebody is writing it down. This browser has no voice of its own, so the words are here to be read.';
+}
+
+/** The sound control, saying which way it is. */
+function soundSays() {
+  $('sound').setAttribute('aria-pressed', String(aloud.isOn()));
+  $('sound-says').textContent = aloud.isOn() ? 'sound on' : 'sound off';
+}
+
+$('sound').addEventListener('click', () => {
+  aloud.turn(!aloud.isOn());
+  soundSays();
+});
+
 $('channel').addEventListener('change', async () => {
-  $('channel-says').textContent =
-    $('channel').value === 'voice'
-      ? 'On the telephone a time is spoken rather than listed, and a reference is spelled out twice — because somebody is writing it down.'
-      : 'In chat the times are a numbered list, because somebody can read them back.';
+  channelSays();
 
   // A channel is a property of a call, not a setting: changing it starts a new
   // one rather than switching how the current one is spoken half way through.
@@ -616,9 +701,16 @@ async function showBookings() {
 
 // ──────────────────────────────────────────────────────────────── on arrival
 
+// Before the first call, because a browser that reloads with the telephone
+// still chosen has to find the sound control where it belongs and the caption
+// already true — and because the call started below is the one that must not
+// speak.
+soundSays();
+channelSays();
+
 await Promise.all([readClinic(), readWhatIsReading()]);
 await Promise.all([showCatalogue(), showDiary(), showBookings()]);
-await startACall();
+await startACall({ answering: false });
 
 // Only if it is on the screen: focusing something inside a hidden panel puts
 // the caret nowhere and scrolls nothing, which looks exactly like a bug.

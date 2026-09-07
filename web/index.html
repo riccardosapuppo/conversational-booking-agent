@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="./mark.svg" />
-    <meta name="theme-color" content="#123b3a" />
+    <!-- The band across the top is the same colour in both themes, so the
+         browser's own chrome can be told it once. -->
+    <meta name="theme-color" content="#0c2d2b" />
     <link rel="stylesheet" href="./console.css" />
   </head>
 
@@ -29,105 +31,141 @@
       own tabs.
     -->
 
-    <header class="top">
-      <div class="who">
-        <svg data-mark width="34" height="34" viewBox="0 0 32 32" role="img" aria-label="Booking agent" fill="none">
-          <rect width="32" height="32" rx="8" fill="var(--mark-ground)" />
-          <rect x="7" y="9" width="18" height="14" rx="2.5" fill="var(--mark-ink)" opacity="0.5" />
-          <rect x="7" y="9" width="18" height="4" rx="2" fill="var(--mark-ink)" />
-          <rect x="11" y="16.5" width="4" height="4" rx="1.2" fill="var(--mark-ground)" />
-        </svg>
+    <!--
+      The band: who is answering, whose clinic it is answering for, which side
+      of the desk you are standing on, and what is doing the reading. All four
+      belong to the chrome rather than to either view, and putting them in one
+      dark block is what tells somebody in three seconds that this is a thing
+      rather than a page about a thing.
 
-        <div>
-          <h1 id="clinic-name">…</h1>
-          <p id="clinic-detail">reading the clinic…</p>
+      The heading is the clinic, and the line above it is what this is: the
+      clinic's name on its own reads as a clinic's website, which is the one
+      thing this is not.
+    -->
+    <header class="top">
+      <div class="bar middle">
+        <div class="who">
+          <!--
+            The mark, and the same drawing as `mark.svg` — checked, because two
+            files holding one drawing stay one drawing only for as long as
+            somebody remembers. What differs is the paint: a favicon is loaded
+            outside the page and inherits none of its colours, so that file's
+            are literal, and here the two are named and used the other way
+            round because this ground is the band.
+          -->
+          <svg data-mark width="38" height="38" viewBox="0 0 32 32" role="img" aria-label="Booking agent" fill="none">
+            <rect width="32" height="32" rx="8" fill="var(--mark-ground)" />
+            <path
+              d="M10 6 H22 A4 4 0 0 1 26 10 V17 A4 4 0 0 1 22 21 H16 L9.7 26.6 V21 H10 A4 4 0 0 1 6 17 V10 A4 4 0 0 1 10 6 Z"
+              fill="var(--mark-ink)"
+            />
+            <path
+              d="M12 13.8 L15 16.8 L20.2 10.6"
+              stroke="var(--mark-ground)"
+              stroke-width="2.9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+
+          <div>
+            <p class="what">Booking agent</p>
+            <h1 id="clinic-name">…</h1>
+            <p id="clinic-detail">reading the clinic…</p>
+          </div>
         </div>
+
+        <!--
+          Which side you are standing on. Each one says whose view it is in as
+          many words, because "chat" and "clinic" name the contents rather than
+          the person — and the person is the whole distinction.
+        -->
+        <nav class="sides" role="tablist" aria-label="Which side of the desk to stand on">
+          <button
+            type="button"
+            class="side"
+            role="tab"
+            data-side="caller"
+            id="tab-caller"
+            aria-controls="side-caller"
+            aria-selected="true"
+          >
+            <span class="side-name">The caller&rsquo;s side</span>
+            <span class="side-what">what somebody ringing up sees &mdash; the conversation, and nothing else</span>
+          </button>
+
+          <button
+            type="button"
+            class="side"
+            role="tab"
+            data-side="desk"
+            id="tab-desk"
+            aria-controls="side-desk"
+            aria-selected="false"
+          >
+            <span class="side-name">The clinic&rsquo;s side</span>
+            <span class="side-what">what the people answering see &mdash; the catalogue, the diary, what has been booked</span>
+          </button>
+        </nav>
       </div>
 
       <!--
-        Which side you are standing on. Each one says whose view it is in as
-        many words, because "chat" and "clinic" name the contents rather than
-        the person — and the person is the whole distinction.
-      -->
-      <nav class="sides" role="tablist" aria-label="Which side of the desk to stand on">
-        <button
-          type="button"
-          class="side"
-          role="tab"
-          data-side="caller"
-          id="tab-caller"
-          aria-controls="side-caller"
-          aria-selected="true"
-        >
-          <span class="side-name">The caller&rsquo;s side</span>
-          <span class="side-what">what somebody ringing up sees &mdash; the conversation, and nothing else</span>
-        </button>
+        What is reading, on the page rather than only in the prose.
 
-        <button
-          type="button"
-          class="side"
-          role="tab"
-          data-side="desk"
-          id="tab-desk"
-          aria-controls="side-desk"
-          aria-selected="false"
-        >
-          <span class="side-name">The clinic&rsquo;s side</span>
-          <span class="side-what">what the people answering see &mdash; the catalogue, the diary, what has been booked</span>
-        </button>
-      </nav>
+        Somebody types a sentence, gets a sensible answer back, and has no way at
+        all to tell whether a model was involved. That ambiguity flatters this
+        project and it should not: the reader is rules, on purpose, and the reason
+        it is worth saying out loud is that the socket it sits in is one method
+        wide. Everything in this strip is read from `/reading`, which asks the
+        object that is actually doing the reading — so a model-backed reader would
+        change what this says without a line of this page changing.
+
+        Drawn as the status line of the band, because that is what it is: not
+        something either view holds, but a fact about the machine underneath both
+        of them, true while somebody is looking at either one.
+      -->
+      <section class="reading" aria-label="What is reading">
+        <div class="middle">
+          <p class="now">
+            <span class="dot" aria-hidden="true"></span>
+            <span>
+              Reading with <strong id="reader-name">…</strong>, from
+              <code class="mono" id="reader-where">…</code> &mdash;
+              <span id="reader-default">asking the service what it is using…</span>
+            </span>
+          </p>
+
+          <details class="seam">
+            <summary>Where a model would go, and why there is only one such place</summary>
+
+            <div class="seam-said">
+              <p>
+                One file has an opinion about what an English sentence means.
+                Everything after it &mdash; the flow, the catalogue, the diary
+                &mdash; works on a <code>Reading</code>, which is plain data. So the
+                whole of the agent&rsquo;s behaviour can be tested without a model,
+                and a model cannot reach past that line to change any of it.
+              </p>
+              <p>
+                The socket is the <code id="seam-protocol">Reader</code> protocol,
+                and it is <strong id="seam-wide">…</strong> wide:
+                <code class="mono" id="seam-methods">…</code>. A model-backed reader
+                is a class with that method, handed to the service when it starts.
+                There is no second place to put one.
+              </p>
+              <p class="plain">
+                Nothing is connected to a model here, and this page will never ask
+                you for a key &mdash; a demonstration that wants an account before
+                it does anything is a demonstration nobody runs. This clinic does
+                not exist and nothing here is kept between two runs.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
     </header>
 
-    <!--
-      What is reading, on the page rather than only in the prose.
-
-      Somebody types a sentence, gets a sensible answer back, and has no way at
-      all to tell whether a model was involved. That ambiguity flatters this
-      project and it should not: the reader is rules, on purpose, and the reason
-      it is worth saying out loud is that the socket it sits in is one method
-      wide. Everything in this strip is read from `/reading`, which asks the
-      object that is actually doing the reading — so a model-backed reader would
-      change what this says without a line of this page changing.
-    -->
-    <section class="reading" aria-label="What is reading">
-      <p class="now">
-        <span class="dot" aria-hidden="true"></span>
-        <span>
-          Reading with <strong id="reader-name">…</strong>, from
-          <code class="mono" id="reader-where">…</code> &mdash;
-          <span id="reader-default">asking the service what it is using…</span>
-        </span>
-      </p>
-
-      <details class="seam">
-        <summary>Where a model would go, and why there is only one such place</summary>
-
-        <div class="seam-said">
-          <p>
-            One file has an opinion about what an English sentence means.
-            Everything after it &mdash; the flow, the catalogue, the diary
-            &mdash; works on a <code>Reading</code>, which is plain data. So the
-            whole of the agent&rsquo;s behaviour can be tested without a model,
-            and a model cannot reach past that line to change any of it.
-          </p>
-          <p>
-            The socket is the <code id="seam-protocol">Reader</code> protocol,
-            and it is <strong id="seam-wide">…</strong> wide:
-            <code class="mono" id="seam-methods">…</code>. A model-backed reader
-            is a class with that method, handed to the service when it starts.
-            There is no second place to put one.
-          </p>
-          <p class="plain">
-            Nothing is connected to a model here, and this page will never ask
-            you for a key &mdash; a demonstration that wants an account before
-            it does anything is a demonstration nobody runs. This clinic does
-            not exist and nothing here is kept between two runs.
-          </p>
-        </div>
-      </details>
-    </section>
-
-    <main>
+    <main class="middle">
       <!-- ──────────────────────────────── the caller's side: the conversation -->
       <section class="panel talk" id="side-caller" role="tabpanel" aria-labelledby="tab-caller">
         <div class="talk-top">
@@ -140,6 +178,23 @@
               <option value="voice">the telephone</option>
             </select>
           </label>
+
+          <!--
+            Only on the telephone, and only where the browser can speak.
+
+            On chat there is nothing to say out loud, so a sound control there
+            would be a switch for nothing; hidden rather than disabled, because
+            a dead control invites a press and then has to explain itself.
+
+            It starts on, and nothing is ever said before somebody has pressed
+            something — picking the telephone is that something. The choice is
+            kept per browser, because having to silence a page twice is the
+            insult that makes people close it.
+          -->
+          <button type="button" class="quiet sound" id="sound" aria-pressed="true" hidden>
+            <span class="sound-mark" aria-hidden="true"></span>
+            <span id="sound-says">sound on</span>
+          </button>
 
           <button type="button" class="quiet" id="again">start again</button>
         </div>
@@ -155,6 +210,10 @@
           replace the loader when they arrive. Nothing about the agent is faster
           for it; what changes is that somebody can see that something is
           happening, rather than watching a screen that did nothing at all.
+
+          It fills from the bottom, which is where a conversation on a screen
+          has always started: an empty transcript that begins at the top leaves
+          a hand's depth of nothing under the first greeting.
         -->
         <ol class="said" id="said" aria-live="polite"></ol>
 
@@ -290,7 +349,7 @@
       </section>
     </main>
 
-    <footer>
+    <footer class="middle">
       <p>
         A demonstration. The clinic named at the top is invented, and so is
         every exam, room and price in

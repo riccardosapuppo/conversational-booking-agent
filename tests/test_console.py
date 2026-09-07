@@ -85,52 +85,83 @@ def answered(url: str, *, seconds: int) -> bool:
     return False
 
 
-@unittest.skipUnless(sync_playwright, "Playwright is not installed here")
-class TheConsole(unittest.TestCase):
-    """One service and one browser for the lot; a fresh page for each check.
+#: The service and the browser, started once for the whole file.
+#:
+#: One of each rather than one per class: starting a second service means a
+#: second port, and two of them on one machine is a check that passes alone and
+#: fails when the file is run in one go. What is not shared is the page — a
+#: call is state, and two checks sharing one would be two checks where the
+#: second only passes in the order the first left things.
+STANDING: dict = {}
 
-    A page each because a call is state and these are about how a call ends: two
-    of them sharing one would be two tests where the second only passes in the
-    order the first left things.
-    """
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        if not free(PORT):
-            raise unittest.SkipTest(f"something is already listening on {PORT}")
+def setUpModule() -> None:
+    if sync_playwright is None:
+        raise unittest.SkipTest("Playwright is not installed here")
 
-        cls.service = subprocess.Popen(
-            [sys.executable, "-m", "booking_agent.service", "--port", str(PORT), "--no-open"],
-            cwd=HERE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        cls.addClassCleanup(cls.stop)
+    if not free(PORT):
+        raise unittest.SkipTest(f"something is already listening on {PORT}")
 
-        if not answered(f"{WHERE}/health", seconds=30):
-            raise unittest.SkipTest("the service did not come up")
+    STANDING["service"] = subprocess.Popen(
+        [sys.executable, "-m", "booking_agent.service", "--port", str(PORT), "--no-open"],
+        cwd=HERE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
-        cls.playing = sync_playwright().start()
-        cls.addClassCleanup(cls.playing.stop)
+    if not answered(f"{WHERE}/health", seconds=30):
+        raise unittest.SkipTest("the service did not come up")
 
-        try:
-            cls.browser = cls.playing.chromium.launch(channel="msedge")
-        except Exception as why:  # pragma: no cover - depends on the machine
-            raise unittest.SkipTest(f"Microsoft Edge would not start here: {why}")
+    STANDING["playing"] = sync_playwright().start()
 
-        cls.addClassCleanup(cls.browser.close)
+    try:
+        STANDING["browser"] = STANDING["playing"].chromium.launch(channel="msedge")
+    except Exception as why:  # pragma: no cover - depends on the machine
+        raise unittest.SkipTest(f"Microsoft Edge would not start here: {why}")
 
-    @classmethod
-    def stop(cls) -> None:
-        cls.service.terminate()
-        try:
-            cls.service.wait(timeout=5)
-        except subprocess.TimeoutExpired:  # pragma: no cover
-            cls.service.kill()
+
+def tearDownModule() -> None:
+    browser = STANDING.pop("browser", None)
+    if browser is not None:
+        browser.close()
+
+    playing = STANDING.pop("playing", None)
+    if playing is not None:
+        playing.stop()
+
+    service = STANDING.pop("service", None)
+    if service is None:
+        return
+
+    service.terminate()
+    try:
+        service.wait(timeout=5)
+    except subprocess.TimeoutExpired:  # pragma: no cover
+        service.kill()
+
+
+class Driving(unittest.TestCase):
+    """A page of its own, opened on the caller's side and settled."""
+
+    #: Something to run before the page's own scripts, for a check about
+    #: behaviour that leaves no mark on the screen. Empty here: a page watched
+    #: for no reason is a page not being tested as it ships.
+    watching = ""
 
     def setUp(self) -> None:
-        self.page = self.browser.new_page(viewport={"width": 1200, "height": 900})
+        self.page = STANDING["browser"].new_page(viewport={"width": 1200, "height": 900})
         self.addCleanup(self.page.close)
+
+        #: Anything the page threw and nobody caught. Collected here because it
+        #: has to be listening before the page loads, and looked at where it
+        #: matters — a page that works and throws on the way past is a page one
+        #: browser away from not working.
+        self.problems: list[str] = []
+        self.page.on("pageerror", lambda why: self.problems.append(str(why)))
+
+        if self.watching:
+            self.page.add_init_script(self.watching)
+
         self.page.goto(f"{WHERE}/#caller", wait_until="networkidle")
         self.settled()
 
@@ -140,17 +171,30 @@ class TheConsole(unittest.TestCase):
         """Waits until no bubble is still waiting for words to go in it."""
         self.page.wait_for_function("() => !document.querySelector('.words.thinking')")
 
-    def restart(self) -> None:
-        """Presses "start again", and waits for the call it starts.
+    def dials_again(self, press) -> None:
+        """Does something that starts a new call, and waits for the new call.
 
-        Not just for the click: that button hangs up before it dials, so at the
-        moment it returns the transcript still belongs to the call that has
-        gone and nothing is waiting for words yet. Asking whether the page has
-        settled right then gets a truthful answer about the wrong call.
+        Not just for the click: "start again" and the channel control both hang
+        up before they dial, so at the moment the click returns the transcript
+        still belongs to the call that has gone and nothing is waiting for
+        words yet. Asking whether the page has settled right then gets a
+        truthful answer about the wrong call.
+
+        Waited for by the reference rather than by the transcript being one
+        bubble long. That was the first version of this and it is right until
+        the call being replaced is *also* one bubble long — which is exactly
+        what a page that has just been opened has, so the check that used it
+        passed or failed depending on how fast the machine was.
         """
-        self.page.click("#again")
-        self.page.wait_for_function("() => document.querySelectorAll('#said li').length === 1")
+        was = self.page.locator("#call-reference").text_content()
+        press()
+        self.page.wait_for_function(
+            "(was) => document.getElementById('call-reference').textContent !== was", arg=was
+        )
         self.settled()
+
+    def restart(self) -> None:
+        self.dials_again(lambda: self.page.click("#again"))
 
     def says(self, words: str) -> None:
         self.page.fill("#text", words)
@@ -164,6 +208,10 @@ class TheConsole(unittest.TestCase):
         said = self.bubbles()
         self.assertTrue(said, "the transcript is empty")
         return said[-1]
+
+
+class TheConsole(Driving):
+    """The page, driven the way somebody uses it."""
 
     # -------------------------------------------- a call that has finished
 
@@ -326,6 +374,249 @@ class TheConsole(unittest.TestCase):
         took = (time.monotonic() - started) * 1000
 
         self.assertGreaterEqual(took + 50, least(), f"the greeting landed after {took:.0f}ms")
+
+
+# ─────────────────────────────────────────────────── the telephone, out loud
+
+#: Watching what the page asks to be said.
+#:
+#: Sound is the one thing a browser driven by a script cannot hear, so what is
+#: checked is what was *asked for* — and that turns out to be the interesting
+#: half anyway: the words handed to the platform are the words `voice.py` made,
+#: and whether they were asked for at all is the whole of the autoplay
+#: question. The real methods are still called underneath, so nothing here is
+#: testing a page that has been altered into working.
+WATCHING = """
+  window.__spoken = [];
+  window.__cancels = 0;
+
+  const speak = speechSynthesis.speak.bind(speechSynthesis);
+  const cancel = speechSynthesis.cancel.bind(speechSynthesis);
+
+  speechSynthesis.speak = (utterance) => {
+    window.__spoken.push(utterance.text);
+    return speak(utterance);
+  };
+
+  speechSynthesis.cancel = () => {
+    window.__cancels += 1;
+    return cancel();
+  };
+"""
+
+#: A browser with no voice of its own. There are real ones, and this is how the
+#: page they get is checked without going and finding one.
+NO_VOICE = """
+  delete window.speechSynthesis;
+  delete window.SpeechSynthesisUtterance;
+"""
+
+
+class TheTelephoneIsHeard(Driving):
+    """The difference between the two channels, made audible.
+
+    Everything `voice.py` does was invisible on this page: choosing "the
+    telephone" changed the words in a bubble somebody went on reading, so the
+    question the page got asked was what the difference was supposed to be.
+    These are about the answer being a thing you hear.
+    """
+
+    watching = WATCHING
+
+    def spoken(self) -> list[str]:
+        return self.page.evaluate("() => window.__spoken")
+
+    def cancels(self) -> int:
+        return self.page.evaluate("() => window.__cancels")
+
+    def telephone(self) -> None:
+        """Picks the telephone, and waits for the call that starts.
+
+        A channel is a property of a call, so choosing one hangs the old call
+        up and dials again. Only when it is not already chosen: a reload can
+        bring the control back the way it was left, and selecting what is
+        already selected starts nothing to wait for.
+        """
+        if self.page.locator("#channel").input_value() != "voice":
+            self.dials_again(lambda: self.page.select_option("#channel", "voice"))
+
+        self.settled()
+
+    def test_nothing_is_said_before_anybody_has_asked_for_anything(self) -> None:
+        """A page that talks the moment it loads is a page somebody closes.
+
+        It is also a page browsers refuse to let talk: speech is blocked until
+        something has been pressed, so a greeting spoken on arrival would be
+        dropped without a word — a feature that half works, which is worse than
+        one that is off. Both are answered by this never speaking first.
+        """
+        self.assertEqual(self.spoken(), [], "the page spoke on the way in")
+        self.assertTrue(self.page.locator("#sound").is_hidden(), "a sound control on a chat")
+
+    def test_and_not_even_when_it_opens_with_the_telephone_already_chosen(self) -> None:
+        """The case the rule is actually for, and the reason it is a rule.
+
+        A page that opens on chat is quiet whatever it believes about speaking
+        first. A control can come back the way it was left, though — some
+        browsers do that on a plain reload and all of them on the way back
+        through history — and a page that read the channel and greeted out loud
+        would then be talking to somebody who has pressed nothing, into a
+        browser that will not let it and reports nothing when it refuses.
+
+        Edge does not restore this control on a reload, so the page is served
+        here with the telephone already selected, which is the same arrival.
+        """
+        self.page.route(
+            f"{WHERE}/",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body=(HERE / "web" / "index.html")
+                .read_text(encoding="utf-8")
+                .replace('<option value="voice">', '<option value="voice" selected>'),
+            ),
+        )
+
+        self.page.goto(f"{WHERE}/", wait_until="networkidle")
+        self.settled()
+
+        self.assertEqual(self.page.locator("#channel").input_value(), "voice", "the page did not open on it")
+        self.assertEqual(self.spoken(), [], "it spoke to somebody who had not asked for anything")
+        self.assertFalse(self.page.locator("#sound").is_hidden(), "and offered no way to stop it")
+
+        # And it speaks the moment there is a reason to.
+        self.says("knee")
+        self.assertEqual(self.spoken(), [self.last()])
+
+    def test_picking_the_telephone_says_the_greeting_out_loud(self) -> None:
+        self.telephone()
+
+        self.assertEqual(self.spoken(), [self.last()], "the greeting was not said out loud")
+        self.assertFalse(self.page.locator("#sound").is_hidden(), "no way to silence it")
+
+        # It has to say where the voice comes from, and that nothing is being
+        # listened to. A page that starts making sound and explains nothing is
+        # a page somebody is right to be suspicious of.
+        said = self.page.locator("#channel-says").text_content()
+        self.assertIn("nothing leaves this machine", said.lower())
+
+    def test_and_a_chat_says_nothing_at_all(self) -> None:
+        """The channel is the whole of the difference, here as everywhere else."""
+        self.says("knee")
+
+        self.assertIn("MRI knee", self.last())
+        self.assertEqual(self.spoken(), [], "a chat was read aloud")
+
+    def test_what_is_said_is_what_the_voice_channel_made_of_it(self) -> None:
+        """The payoff, and the reason any of this was worth doing.
+
+        A listener cannot look back. So the times are sentences rather than a
+        numbered list, and the reference is spelled out and then spelled again
+        — and this is where that stops being a unit test of a function and
+        becomes the thing somebody hears while holding a pen.
+        """
+        self.telephone()
+
+        for words in ("MRI knee", "left, no contrast", "Anna Bianchi", "the second", "yes"):
+            self.says(words)
+
+        said = self.spoken()
+        booked = said[-1]
+
+        self.assertEqual(booked, self.last(), "the words heard are not the words on the screen")
+
+        found = re.search(r"\b([A-Z0-9]{3}-[A-Z0-9]{3})\b", self.page.locator("#ended").text_content())
+        self.assertIsNotNone(found, "the call did not end in a booking")
+
+        spelled = " ".join("dash" if character == "-" else character for character in found.group(1))
+        self.assertEqual(booked.count(spelled), 2, f"the reference was not said twice: {booked!r}")
+
+        for one in said:
+            with self.subTest(said=one[:40]):
+                self.assertNotRegex(one, r"\d{1,2}:\d{2}", "a written time was read out")
+                self.assertNotRegex(one, r"\d\)", "a numbered list was read out")
+
+        self.assertTrue(
+            any("o'clock" in one for one in said),
+            "no time was ever spoken as a time",
+        )
+
+    def test_the_last_thing_said_is_cut_off_by_the_next(self) -> None:
+        """Speech that queues is a page talking about the message before last.
+
+        Cut off when the sentence is sent rather than when the reply arrives:
+        waiting for the reply leaves half of the previous one still playing
+        over somebody who has already moved on. So this asks for the silence to
+        have happened before the reply could possibly have landed — the page
+        holds every bubble empty for half a second, and this waits for less.
+        """
+        self.telephone()
+        self.says("MRI knee")
+
+        before = self.cancels()
+
+        self.page.fill("#text", "left, no contrast")
+        self.page.click("#send")
+
+        try:
+            self.page.wait_for_function(f"() => window.__cancels > {before}", timeout=least() - 100)
+        except NeverTurnedUp:
+            self.fail("the previous reply was still being said when the next one was sent")
+
+        self.assertEqual(
+            self.page.locator(".said .words.thinking").count(),
+            1,
+            "the reply had already arrived, so this proves nothing about cutting it off",
+        )
+
+        self.settled()
+
+    def test_it_can_be_silenced_and_the_silence_survives_a_reload(self) -> None:
+        """Having to silence a page twice is the insult that closes the tab."""
+        self.telephone()
+        self.assertTrue(self.spoken(), "there was nothing to silence")
+
+        self.page.click("#sound")
+
+        self.assertEqual(self.page.locator("#sound").get_attribute("aria-pressed"), "false")
+        self.assertEqual(self.page.locator("#sound-says").text_content(), "sound off")
+
+        said_before = len(self.spoken())
+        self.says("MRI knee")
+        self.assertEqual(len(self.spoken()), said_before, "it went on talking after being silenced")
+
+        self.page.reload(wait_until="networkidle")
+        self.settled()
+        self.telephone()
+        self.says("MRI knee")
+
+        self.assertEqual(self.spoken(), [], "the silence lasted exactly one page")
+        self.assertEqual(self.page.locator("#sound-says").text_content(), "sound off")
+
+
+class WhereThereIsNoVoice(Driving):
+    """A browser with no `speechSynthesis`, which is a real browser and not a
+    hypothetical one. The page it gets is the page as it was."""
+
+    watching = NO_VOICE
+
+    def test_the_page_is_exactly_what_it_was(self) -> None:
+        self.assertEqual(
+            self.page.evaluate("() => typeof window.speechSynthesis"),
+            "undefined",
+            "the browser still has a voice, so this checks nothing",
+        )
+
+        self.dials_again(lambda: self.page.select_option("#channel", "voice"))
+
+        self.assertTrue(self.page.locator("#sound").is_hidden(), "a sound control with nothing to say")
+
+        # And it says so, rather than describing a telephone that talks.
+        self.assertIn("to be read", self.page.locator("#channel-says").text_content())
+
+        self.says("knee")
+        self.assertIn("MRI knee", self.last())
+        self.assertEqual(self.problems, [], "the page threw on a browser with no voice")
 
 
 if __name__ == "__main__":

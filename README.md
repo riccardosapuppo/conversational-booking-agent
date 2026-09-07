@@ -72,7 +72,8 @@ python -m tools.talk
 
 Five packages are installed, all of them pinned in
 [requirements.txt](requirements.txt): LangGraph for the conversation graph,
-FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests.
+FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests and
+for the telephony adapter, which calls this service the way anything else does.
 It said four until somebody counted the file. Then type at it:
 
 ```
@@ -115,6 +116,9 @@ The same call on the telephone, with `python -m tools.talk --voice`:
 > The first is Monday the seventh of September at nine o'clock in the morning.
 > The second is Monday the seventh of September at nine fifteen in the morning.
 > […] Your reference is M 6 H dash F W V. That is M 6 H dash F W V, once more.
+
+On the console that reply is **said out loud**, and down a real telephone line
+it is what a switchboard is handed to speak. Both are further down.
 
 ## What it is careful about
 
@@ -190,6 +194,68 @@ stands for half a second at the least — a floor and not a delay, on every rout
 into the transcript: the request leaves immediately and a slower answer is never
 held back for it.
 
+### The telephone, out loud
+
+The first question this page got asked was what the difference between *chat*
+and *the telephone* was supposed to be. That question was the answer: in
+`voice.py` the difference is substantial — a numbered list becomes sentences
+because "one close paren" is not a word, `09:00` becomes "nine o'clock in the
+morning" because "seven" on its own gets somebody to a clinic twelve hours
+early, and the reference is spelled out and then spelled again because there is
+no scrolling back to something you are half way through writing down. In a
+browser, all of that was one piece of text replacing another, read by somebody
+who could look back at it whenever they liked. The work was real and the
+evidence was not.
+
+So on the telephone **the reply is spoken**, in one of the machine's own
+voices. `speechSynthesis` is in the browser already: no key, no account, no
+request and no microphone — nothing is listened to and nothing leaves the
+machine, and the page says so where the choice is made. What was a caption is
+now a thing you hear, including the reference said twice, which is the one part
+of `voice.py` that reads as fussy on a screen and is obviously right in the ear.
+
+![The caller's side on the telephone, with the sound control beside the channel and a reference spelled out in the reply](docs/telephone.png)
+
+Four details, because the naive version of this is worse than not doing it:
+
+- **It can be silenced, and the silence is remembered.** Somebody who opens a
+  page that starts talking closes it, and making them silence it again on every
+  reload is that insult twice. The choice is kept per browser.
+- **It never speaks first.** Browsers refuse speech until a page has been
+  interacted with, so a greeting spoken on arrival would be swallowed without a
+  word — a feature that half works, which is worse than one that is off. The
+  page therefore only ever speaks as the direct result of something pressed:
+  choosing the telephone, sending a sentence, starting again. That is not a
+  workaround for the policy, it is the behaviour you would want anyway.
+- **It stops when the conversation moves on.** A new sentence cuts off whatever
+  was still being said — when the sentence is sent, not when the reply lands,
+  because the alternative is the agent talking over the caller.
+- **Where there is no `speechSynthesis` there is no sound control**, no
+  promise of one, and a page otherwise exactly as it was.
+
+The voices arrive asynchronously — `getVoices()` is empty on the first call in
+every browser tried here — so the choice is made again on `voiceschanged` and
+nothing waits for it: with no voice yet chosen the utterance carries a language
+and the platform picks. A page that held its tongue until the list arrived would
+be silent for exactly the first reply anybody hears.
+
+Sound is the one thing a browser driven by a script cannot hear, so what
+[the checks](tests/test_console.py) do is watch what the page *asks* to be
+said: that nothing is asked for on arrival, that choosing the telephone asks for
+the greeting, that the words asked for are the words in the bubble, that the
+reference is in them twice, that no `09:00` and no `1)` ever is, that the
+previous reply is cut off before the next one can have arrived, and that
+silencing it survives a reload.
+
+**Listening is not here, and that is a decision.** The browser can do
+recognition too, and it was tried: it works. But it goes through an external
+service and wants the microphone, and this page's standing promise is that
+nothing it does reaches the network or records anything — buying "it feels like
+a phone call" with the one claim that makes the demonstration trustworthy is a
+bad trade. The ear belongs to the switchboard — *Down a telephone line*,
+below — where it is a recogniser the clinic has chosen and paid for rather
+than somebody's browser quietly uploading a waiting room.
+
 ### What is reading, said on the screen
 
 The first question this project gets asked is how it works with no model
@@ -200,15 +266,15 @@ sensible answer back had no way at all to tell what had understood it — an
 ambiguity that flattered this project and cost it nothing, which is the kind
 worth removing.
 
-So the strip under the header names the reader in use and the file it lives in,
-and opens onto the seam itself: the `Reader` protocol, the methods it requires,
-and the fact that a model-backed reader is a class with that one method, handed
-in at start up. All of it comes from `GET /reading`, which answers from the
-object actually doing the reading and counts the protocol's methods off the
-protocol — "one method wide" is a claim, and a sentence cannot notice a second
-method being added to a class.
+So the status line across the header names the reader in use and the file it
+lives in, and opens onto the seam itself: the `Reader` protocol, the methods it
+requires, and the fact that a model-backed reader is a class with that one
+method, handed in at start up. All of it comes from `GET /reading`, which
+answers from the object actually doing the reading and counts the protocol's
+methods off the protocol — "one method wide" is a claim, and a sentence cannot
+notice a second method being added to a class.
 
-![The strip under the header: reading with Rules, from booking_agent/conversation/reading.py, opened out to show that the Reader protocol is one method wide](docs/reading.png)
+![The status line across the header: reading with Rules, from booking_agent/conversation/reading.py, opened out to show that the Reader protocol is one method wide](docs/reading.png)
 
 Hand a different reader to `build()` and the page says so with no line of the
 page changed. [A test](tests/test_looking.py) hands one in and checks both
@@ -232,6 +298,113 @@ That is not a precaution. The first version of that list had a button labelled
 naming an exam this clinic does not have. Both looked entirely convincing until
 somebody pressed them, and a screenshot is what pressed them.
 
+## Down a telephone line
+
+The system this came out of answers a telephone. Somebody dials a number, a
+switchboard picks up, and the agent is at the other end of it — and that, the
+part with the most work in it, was the part a visitor to this repository could
+see nothing of at all.
+
+Showing it does not need a number. It needs the **messages**.
+
+[jambonz](https://jambonz.org) is an open-source programmable switchboard: it
+terminates SIP, does the listening and the speaking itself, and asks an
+application what to do next, so the application never touches audio. It asks
+either over HTTP webhooks or over one WebSocket per call. `booking_agent/telephony/`
+is the WebSocket side — a switchboard's messages in, its verbs out:
+
+```
+booking_agent/telephony/
+  desk.py      the three things a caller can do, and the one way of doing them
+  jambonz.py   session:new, verb:hook and call:status in; say, gather, hangup out
+```
+
+**The direction of the dependency is the whole argument.** This is a *client*
+of the service, standing exactly where the console stands and making the same
+three requests it makes — start a call, say something into it, hang up. There
+is no private entrance into the agent, because a second way in is always the
+one nobody tested. Adding a telephone changed no file that was here before it.
+
+`Desk` is a protocol for the same reason `Reader` is one, and it is three
+methods wide because a caller can do three things; [a
+check](tests/test_telephony.py) counts them off the protocol rather than
+believing this paragraph.
+
+### The proof, which is a whole call
+
+`data/telephony/one-whole-call.json` is a call as a switchboard sends it: the
+ring, four things a caller said, one stretch where they said nothing at all,
+and the handset going down. The checks replay it through the adapter and then
+look at **the diary** — an appointment for the person who rang, at the time
+they picked — because a check written against the adapter's own output would
+prove the translation talks, not that it books. Nothing dials, nothing reaches
+the network, and it runs on any machine for ever.
+
+Read it yourself:
+
+```
+python -m tools.telephone          both sides of the call
+python -m tools.telephone --json   every message in full
+```
+
+```
+  session:new    [trying]
+  -> gather      You are through to Kesterby Diagnostic Centre. What can I book for you?
+
+  verb:hook      I need an MRI of the left knee without contrast
+  -> gather      And what name should I put it under?
+
+  verb:hook      [timeout]
+  -> gather      And what name should I put it under?
+  …
+  verb:hook      yes
+  -> say         Booked: … Your reference is R D P dash 2 K 7. That is R D P dash 2 K 7,
+                 once more.
+  -> hangup
+```
+
+That is `voice.py` again, unchanged, and it is the reason the channel matters:
+the switchboard is handed the reply already worded for somebody who cannot look
+back. Nothing in the adapter has an opinion about wording — it has no sentence
+of its own anywhere, which is why the silence in the middle is answered by
+**asking the agent's own last question again**, once, and then ending the call.
+
+**Silence is not a sentence**, and neither is a transcript the switchboard says
+it is unsure of. Neither is sent to the agent. A guess pushed into a booking is
+the failure the whole of this project is arranged against, and the last place to
+give up on that is the one nearest the noise.
+
+### What you can see here, and what needs a number
+
+Plainly, because this is the paragraph it would be easiest to be vague in:
+
+| | |
+|---|---|
+| **Here, in the browser** | the conversation, the diary, the booking, and the reply said out loud |
+| **Here, in the checks** | a whole call translated message by message, ending in a real appointment |
+| **Needs a number and an account** | the SIP trunk, the number, the speech vendors, and a public address for the switchboard to reach |
+
+There are no credentials in this repository, no real telephone numbers — the
+two in the fixture are from the range reserved for fiction, and [a
+check](tests/test_telephony.py) fails if they ever are not — no endpoint, and
+no configuration belonging to anybody. What is here is the shape of the
+messages.
+
+**And what is deliberately missing.** Message shapes were taken from the
+published documentation, and where one could not be checked against it, it was
+left out rather than guessed at. So: no `session:reconnect`, `session:redirect`
+or `command` messages; no DTMF, because the field name a keypress arrives under
+was not something to invent; no SIP envelope on the new-session payload and no
+vendor block on a transcript, for the same reason; no synthesiser or recogniser
+configuration, which is an account's business rather than a repository's; and
+no server, because serving a WebSocket needs a library this project does not
+install and a route nothing here could exercise is worse than a documented
+absence. An adapter that pretends to an interface that does not exist is worse
+than one that stops short, and whoever reads it finds out either way.
+
+[A check](tests/test_telephony.py) fails if a verb ever leaves here carrying a
+property that is not in the documentation for it.
+
 ## How it is put together
 
 ```
@@ -248,12 +421,16 @@ booking_agent/
     chat.py        for a screen
     voice.py       for somebody who cannot look back
   service/       the outside world, and the only clock in the building
+  telephony/     a switchboard, translated into three requests to that service
 ```
 
 Nothing above imports anything below it, and [a
 test](tests/test_service.py) fails if a domain package ever learns the word
 `fastapi`. The direction of that dependency is the design, and it is exactly
 the kind of thing one convenient import undoes.
+
+`telephony/` sits below `service/` and is the one package that is not part of
+it: it is a client, like the console, and imports nothing else here at all.
 
 ### The conversation graph
 
@@ -316,9 +493,10 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 157 tests
+python -m unittest discover -s tests -t .   # 191 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
+python -m tools.telephone                   # a whole call down a telephone line
 python -m tools.screenshots                 # retakes the pictures above
 ```
 
@@ -327,16 +505,20 @@ Playwright — `pip install -r requirements-checks.txt`. It is not in CI, which
 has no browser, and it says so and stops rather than reporting a success it did
 not earn. It is also what pressed the buttons that turned out to be lying.
 
-**Eight of those tests need the same browser.** Everything else here can be
-checked in Python, but a console that reads a correct answer wrongly cannot:
-`over` came back on every reply, the page stepped over it, and a call that had
-been handed to a person still offered somewhere to type — so the service refused
-the next sentence, as it should, and the page put an empty bubble on the screen.
-Nothing readable in `index.html` would have caught that.
+**16 of those tests need a browser.** Everything else here can be checked in
+Python, but a console that reads a correct answer wrongly cannot: `over` came
+back on every reply, the page stepped over it, and a call that had been handed
+to a person still offered somewhere to type — so the service refused the next
+sentence, as it should, and the page put an empty bubble on the screen. Nothing
+readable in `index.html` would have caught that. Nor is there any way in Python
+to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 149 of the 157**, and it will be green
-on the day the console breaks that way again.
+which is worth saying out loud: **CI runs 175 of the 191**, and it will be green
+on the day the console breaks that way again. All three of those figures are
+counted back out of the suite by [a test](tests/test_diagram.py), because a
+sentence admitting what is not checked is the last one that should be allowed
+to go quietly wrong.
 
 The tests were written alongside the code they test, which makes them good at
 saying it still does what it did and poor at saying it does what a caller
@@ -390,6 +572,9 @@ written down, which is what makes it worth putting on the console.
 Calls are held in memory and let go of after an hour of silence. The booking is
 the thing worth keeping, and the diary already has it.
 
+The first three of those are the whole of what a client of this service can do,
+and both clients do exactly them: the console, and the telephony adapter.
+
 ## The clinic
 
 `data/clinic.json` describes a clinic that does not exist. **Kesterby
@@ -417,12 +602,18 @@ Replace it with your own and pass it to either entry point with `--clinic`.
 
 ## What it does not do
 
-No model, no speech, no telephony, and no database — a restart forgets the
-diary. Reading is rules, which is enough for the sentences in
-`data/conversations/` and will not survive everything a real switchboard hears;
-the `Reader` protocol in `reading.py` is one method wide, so a model-backed
-reader is a new class and no change to anything else. That was the point of
-putting the boundary there.
+No model and no database — a restart forgets the diary. Reading is rules, which
+is enough for the sentences in `data/conversations/` and will not survive
+everything a real switchboard hears; the `Reader` protocol in `reading.py` is
+one method wide, so a model-backed reader is a new class and no change to
+anything else. That was the point of putting the boundary there.
+
+It does not answer a telephone, and nothing here pretends otherwise: there is
+no number, no account, no credential and no running switchboard. What there is
+is the translation between one and this service, replayed as a whole call in
+the checks, and the section above says exactly where the line between the two
+falls. The speaking on the console is the browser's own and stops at the
+browser: no recognition, nothing recorded, nothing sent anywhere.
 
 ---
 

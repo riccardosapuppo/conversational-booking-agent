@@ -1,11 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <!--
-    The same mark as the one inlined in index.html: a diary, with one day
-    marked. Two files because a favicon is loaded outside the page and
-    inherits none of its colours, so its own are literal.
+    The same mark as the one inlined in index.html: something answering, and
+    the appointment the answer ends in — a speech bubble with a tick in it.
+
+    Three shapes and no more. A favicon is read at sixteen pixels in a browser
+    tab, where a fourth would be mud: the diary this replaced had a marked day
+    four pixels across, which at that size was a smudge in a box. What survives
+    shrinking is a silhouette, so the tail is long enough to be one.
+
+    Two files because a favicon is loaded outside the page and inherits none of
+    its colours, so its own are literal. The page's copy is these two colours
+    the other way round, which is why they are named rather than repeated there.
   -->
-  <rect width="32" height="32" rx="8" fill="#123b3a"/>
-  <rect x="7" y="9" width="18" height="14" rx="2.5" fill="#8fd6c9" opacity="0.5"/>
-  <rect x="7" y="9" width="18" height="4" rx="2" fill="#8fd6c9"/>
-  <rect x="11" y="16.5" width="4" height="4" rx="1.2" fill="#123b3a"/>
+  <rect width="32" height="32" rx="8" fill="#0c2d2b"/>
+  <path d="M10 6 H22 A4 4 0 0 1 26 10 V17 A4 4 0 0 1 22 21 H16 L9.7 26.6 V21 H10 A4 4 0 0 1 6 17 V10 A4 4 0 0 1 10 6 Z" fill="#5fd8c4"/>
+  <path d="M12 13.8 L15 16.8 L20.2 10.6" stroke="#0c2d2b" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

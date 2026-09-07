@@ -191,26 +191,41 @@ class TheConsole(unittest.TestCase):
         marked = re.search(r"<svg\b[^>]*\bdata-mark\b[\s\S]*?</svg>", page)
         self.assertIsNotNone(marked, "no <svg data-mark> in the page, so there is nothing to compare")
 
-        def shapes(source: str) -> list[tuple]:
-            return [
-                (
-                    one.group(1),
-                    _number(one.group(2), "x"),
-                    _number(one.group(2), "y"),
-                    _number(one.group(2), "width"),
-                    _number(one.group(2), "height"),
-                )
-                for one in re.finditer(r"<(rect)\b([^>]*)>", source)
-            ]
-
-        drawn = shapes(marked.group(0))
+        drawn = _shapes(marked.group(0))
         self.assertTrue(drawn, "the mark has no shapes in it")
-        self.assertEqual(drawn, shapes(icon), "the header mark and the tab icon have drifted apart")
+        self.assertEqual(drawn, _shapes(icon), "the header mark and the tab icon have drifted apart")
 
 
-def _number(attributes: str, name: str) -> float:
-    found = __import__("re").search(rf'\b{name}="([\d.]+)"', attributes)
-    return float(found.group(1)) if found else 0.0
+#: Everything a mark can be drawn out of.
+#:
+#: A list of elements rather than the one element the mark happens to use. The
+#: mark was three rectangles once and this read rectangles only, which meant it
+#: would have gone on reporting that two files agreed while one of them was
+#: redrawn in paths and the other was not — a check whose subject had moved out
+#: from under it, still passing.
+_DRAWN_WITH = ("rect", "circle", "ellipse", "line", "polyline", "polygon", "path")
+
+#: What is not compared, which is the paint. The two files exist separately
+#: precisely so that their colours can differ — the tab's are literal and the
+#: page's are named — so those are the attributes this has to look away from.
+_NOT_THE_PAINT = frozenset({"fill", "stroke", "opacity", "fill-opacity", "class", "style"})
+
+
+def _shapes(source: str) -> list[tuple[str, tuple[tuple[str, str], ...]]]:
+    """Every shape in an SVG, with its geometry and nothing of its colour."""
+    import re
+
+    found = []
+
+    for one in re.finditer(rf"<({'|'.join(_DRAWN_WITH)})\b([^>]*)>", source):
+        geometry = {
+            name: " ".join(value.split())
+            for name, value in re.findall(r'([a-zA-Z:_-]+)\s*=\s*"([^"]*)"', one.group(2))
+            if name not in _NOT_THE_PAINT
+        }
+        found.append((one.group(1), tuple(sorted(geometry.items()))))
+
+    return found
 
 
 if __name__ == "__main__":

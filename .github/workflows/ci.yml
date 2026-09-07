@@ -30,6 +30,12 @@ jobs:
       - name: Whole conversations
         run: python -m tools.transcripts
 
+      # A whole telephone call, from the ring to the booking, translated out of
+      # a switchboard's own messages. No line, no number and no account: the
+      # messages are a file, and the appointment at the end of it is real.
+      - name: A whole call down a telephone line
+        run: python -m tools.telephone
+
       # It has to start, not just import. A service that only works under a
       # test client is a service nobody can run.
       - name: The service starts and answers

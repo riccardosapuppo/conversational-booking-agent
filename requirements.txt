@@ -19,7 +19,10 @@ fastapi==0.141.1
 uvicorn==0.52.4
 pydantic==2.13.5
 
-# For the tests. The service is tested through a real client against the real
-# application rather than by calling the handlers directly, because half of
-# what a web service can get wrong lives in the layer that skipping them skips.
+# For the tests, and for the telephony adapter. The service is tested through a
+# real client against the real application rather than by calling the handlers
+# directly, because half of what a web service can get wrong lives in the layer
+# that skipping them skips -- and the adapter in booking_agent/telephony is a
+# client of this service in exactly the same way the console is, which is what
+# makes "the same three requests" a fact rather than a claim.
 httpx==0.28.1

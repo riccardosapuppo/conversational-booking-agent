@@ -9,33 +9,79 @@
  * top, each labelled with whose view it is, and the header is the first thing
  * read on the page rather than a control tucked inside one of them.
  *
+ * ── What is loud, and what is not ───────────────────────────────────────────
+ *
+ * One thing here is allowed to be loud, and it is the band across the top: deep
+ * green in both themes, carrying the mark, whose clinic this is, the two doors,
+ * and the line saying what is reading. Everything below it is paper, one card
+ * and hairlines. That is the whole scheme — a page where three things shout has
+ * nothing left to lead with, and this one has about three seconds to say what
+ * somebody is looking at.
+ *
  * The colour is a deep green: a clinic, and a booking, and nothing about it
- * wants to be urgent. One accent, and it means one thing — a slot that is
- * free. Amber means the agent has stopped and asked for a person, which is a
- * good outcome and is drawn as one rather than as an error.
+ * wants to be urgent. One accent, and it means one thing — a slot that is free,
+ * something that is settled. Amber means the agent has stopped and asked for a
+ * person, which is a good outcome and is drawn as one rather than as an error.
+ *
+ * ── The greys were measured, not chosen and hoped for ───────────────────────
+ *
+ * Every pairing of text and its background clears 4.5:1, hover states included:
+ * a control legible until the pointer arrives fails exactly when it is being
+ * used. The faint ink is why this was worth measuring — the old one was 3.5:1
+ * on white, which is a grey that looks tasteful to whoever picked it and is
+ * unreadable to somebody else. It carries the hints and the whole footer.
  */
 
+/* ---------------------------------------------------------------- colours */
+
 :root {
-  --ink: #16211f;
-  --ink-soft: #46534f;
-  --ink-faint: #7d8a86;
+  --ink: #0f1e1b;
+  --ink-soft: #3f4e4a;
+  --ink-faint: #5e6d68;
 
-  --paper: #f2f4f2;
+  --paper: #eef1ef;
   --card: #ffffff;
-  --raised: #f7f9f7;
-  --line: #dde3e0;
+  --raised: #f4f7f5;
+  --line: #dde4e1;
+  --line-strong: #c4cfcb;
 
-  --accent: #147a6d;
-  --accent-ink: #0d5850;
-  --accent-soft: #e3f2ef;
-  --accent-line: #b7ddd7;
+  --accent: #0f7a6b;
+  --accent-ink: #0a5a4f;
+  --accent-soft: #ddf0eb;
+  --accent-line: #a5d5cc;
 
-  --warn: #8a5a00;
+  --on-accent: #ffffff;
+
+  --you-back: #0f7a6b;
+  --you-ink: #ffffff;
+
+  --warn: #7f5300;
   --warn-soft: #fdf3e0;
-  --warn-line: #f0d9a8;
+  --warn-line: #eed49e;
 
-  --mark-ground: #123b3a;
-  --mark-ink: #8fd6c9;
+  /* The band. The same colour in both themes on purpose: it is the one part of
+   * this page that is a colour rather than a light or a dark, and a mark whose
+   * ground changes with the theme is two marks. */
+  --shell: #0c2d2b;
+  --shell-deep: #092221;
+  --shell-raise: #14403d;
+  --shell-hover: #1d514d;
+  --shell-line: #23504b;
+  --on-shell: #eef6f4;
+  --on-shell-soft: #a7c5bf;
+  --on-shell-dim: #98b7b1;
+  --on-shell-bright: #7fe3d0;
+
+  --mark-ground: #5fd8c4;
+  --mark-ink: #0c2d2b;
+
+  --lift: 0 1px 2px rgba(10, 38, 35, 0.05), 0 8px 24px rgba(10, 38, 35, 0.05);
+  --lift-high: 0 10px 26px rgba(4, 22, 20, 0.32);
+
+  /* One gutter and one measure, so the band, the strip, the panel and the
+   * footer all begin and end on the same two lines down the page. */
+  --edge: clamp(1rem, 4vw, 2.5rem);
+  --wide: 78rem;
 
   --ui: system-ui, 'Segoe UI', -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
@@ -43,23 +89,36 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #e6ecea;
-    --ink-soft: #aebab6;
-    --ink-faint: #7e8b87;
+    --ink: #e7edeb;
+    --ink-soft: #b2bfbb;
+    --ink-faint: #8a9995;
 
-    --paper: #101715;
-    --card: #17201e;
-    --raised: #1c2624;
-    --line: #2a3634;
+    --paper: #0b1211;
+    --card: #131c1a;
+    --raised: #182220;
+    --line: #26312f;
+    --line-strong: #35423f;
 
-    --accent: #57c0b0;
-    --accent-ink: #9fe0d5;
-    --accent-soft: #16302c;
-    --accent-line: #24473f;
+    --accent: #4fc4b2;
+    --accent-ink: #9fe4d7;
+    --accent-soft: #14312c;
+    --accent-line: #235049;
+
+    /* White on the dark theme's accent is 2.1:1 — the accent is a light
+     * colour there, and a filled button wearing it has to be written on in
+     * the dark. The caller's bubble keeps white because its green is a
+     * deeper one chosen for exactly that. */
+    --on-accent: #06231f;
+
+    --you-back: #2b8074;
+    --you-ink: #ffffff;
 
     --warn: #e8b665;
     --warn-soft: #2c2415;
     --warn-line: #4a3a1c;
+
+    --lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.26);
+    --lift-high: 0 10px 26px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -72,10 +131,11 @@
 
 body {
   margin: 0;
-  padding: 0 0 2rem;
+  padding: 0 0 3rem;
   background: var(--paper);
   color: var(--ink);
-  font: 15px/1.6 var(--ui);
+  font: 15px/1.65 var(--ui);
+  -webkit-font-smoothing: antialiased;
 }
 
 .visually-hidden {
@@ -88,142 +148,234 @@ body {
 
 .mono { font-family: var(--mono); font-size: 0.86em; }
 
-/* ------------------------------------------------------------------- top */
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 2rem;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 0;
-  background: var(--card);
+/* Everything that runs the width of the page stops at the same measure and is
+ * centred, so a wide screen gets a page rather than a stretched one. */
+.middle {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding-inline: var(--edge);
 }
 
-.who { display: flex; gap: 0.9rem; align-items: flex-start; padding-bottom: 1.1rem; }
-.who h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; }
-.who p { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.88rem; }
+/* --------------------------------------------------------------- the band */
 
-/* --------------------------------------------------- whose view this is */
+.top {
+  background: var(--shell);
+  color: var(--on-shell);
+  border-bottom: 1px solid var(--shell-line);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem 2.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-top: 1.3rem;
+}
+
+.top .who { display: flex; gap: 0.85rem; align-items: center; padding-bottom: 1rem; }
+
+/* The mark is the other way round to the file the browser tab loads: the ground
+ * of that one is this band, and a mark wearing the band is a square nobody can
+ * see. Inverted, it is the one bright thing up here, which is its job. */
+.top .who svg { flex: none; border-radius: 9px; }
+
+.top .who .what {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--on-shell-bright);
+}
+
+.top .who h1 {
+  margin: 0.1rem 0 0;
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  font-weight: 640;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--on-shell);
+}
+
+.top .who #clinic-detail {
+  margin: 0.25rem 0 0;
+  color: var(--on-shell-soft);
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------- whose view this is */
 
 /* Two doors, not two tabs. Each is wide enough to say who is standing behind
  * it, because "chat" and "clinic" name the contents and the contents are not
  * the distinction — and somebody arriving has about three seconds to get it. */
 .sides {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   align-items: stretch;
-  flex: 1 1 26rem;
+  flex: 1 1 27rem;
   max-width: 44rem;
+  padding-bottom: 1rem;
 }
 
 .side {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.2rem;
   text-align: left;
-  padding: 0.7rem 0.9rem 0.75rem;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-bottom: 3px solid var(--line);
-  border-radius: 5px 5px 0 0;
-  color: var(--ink-faint);
+  padding: 0.7rem 0.95rem 0.8rem;
+  background: var(--shell-raise);
+  border: 1px solid var(--shell-line);
+  border-radius: 11px;
+  color: var(--on-shell-soft);
   font: inherit;
   cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .side .side-name { font-weight: 600; font-size: 0.95rem; }
 .side .side-what { font-size: 0.76rem; line-height: 1.35; }
 
-.side:hover { background: var(--raised); color: var(--ink-soft); border-bottom-color: var(--ink-faint); }
+.side:hover { background: var(--shell-hover); border-color: var(--on-shell-dim); color: var(--on-shell); }
 
+/* The door somebody is standing in is the page's own paper, lifted off the band
+ * with the accent along its top edge. Drawn with an inset shadow rather than a
+ * thicker border so that being chosen moves nothing by a pixel. */
 .side[aria-selected='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  border-bottom-color: var(--accent);
-  color: var(--accent-ink);
+  background: var(--card);
+  border-color: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 3px 0 0 var(--accent), var(--lift-high);
 }
+.side[aria-selected='true'] .side-name { color: var(--ink); }
 .side[aria-selected='true'] .side-what { color: var(--ink-soft); }
+.side[aria-selected='true']:hover { background: var(--card); }
 
-/* ----------------------------------------------------- what is reading */
+/* ------------------------------------------------------- what is reading */
 
+/* Inside the band rather than under it. This is the status line of the thing
+ * being demonstrated — which object read the sentence — and a status line
+ * belongs to the chrome rather than to the room. */
 .reading {
-  padding: 0.75rem clamp(1rem, 3vw, 2.4rem) 0.85rem;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--raised);
-  font-size: 0.88rem;
-  color: var(--ink-soft);
+  background: var(--shell-deep);
+  border-top: 1px solid var(--shell-line);
+  color: var(--on-shell-soft);
+  font-size: 0.86rem;
 }
+
+.reading .middle { padding-block: 0.7rem 0.85rem; }
 
 .reading .now { display: flex; gap: 0.7rem; align-items: baseline; margin: 0; }
+.reading .now > span { max-width: 100ch; }
+
+/* A live light, and it breathes. The whole strip is a claim that something is
+ * answering right now, and a dot that never moves is a printed one. */
 .reading .dot {
+  position: relative;
   flex: none;
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
-  background: var(--accent);
-  transform: translateY(-0.1em);
+  background: var(--on-shell-bright);
+  transform: translateY(-0.08em);
 }
-.reading strong { color: var(--ink); }
-.reading code { font-family: var(--mono); font-size: 0.88em; color: var(--accent-ink); }
 
-.seam { margin: 0.4rem 0 0 1.25rem; font-size: 0.84rem; }
-.seam summary { cursor: pointer; color: var(--ink-faint); width: fit-content; }
-.seam summary:hover { color: var(--accent-ink); }
-.seam summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.reading .dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
 
-.seam-said { max-width: 76ch; padding: 0.3rem 0 0 0.2rem; }
-.seam-said p { margin: 0.5rem 0 0; }
-.seam-said .plain { color: var(--ink-faint); }
+.reading strong { color: var(--on-shell); font-weight: 600; }
+.reading code { font-family: var(--mono); font-size: 0.88em; color: var(--on-shell-bright); }
+
+.seam { margin: 0.5rem 0 0 1.2rem; font-size: 0.84rem; }
+.seam summary {
+  cursor: pointer;
+  color: var(--on-shell-dim);
+  width: fit-content;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+.seam summary:hover { color: var(--on-shell); }
+
+.seam-said {
+  max-width: 78ch;
+  margin-top: 0.65rem;
+  padding: 0.75rem 1rem 0.9rem;
+  background: var(--shell);
+  border-left: 2px solid var(--on-shell-bright);
+  border-radius: 0 8px 8px 0;
+}
+.seam-said p { margin: 0.6rem 0 0; }
+.seam-said p:first-child { margin-top: 0; }
+.seam-said .plain { color: var(--on-shell-dim); }
 
 /* ----------------------------------------------------------------- layout */
 
-main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
+main { display: block; padding-top: 1.4rem; }
 
 .panel {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1.1rem 1.2rem 1.2rem;
+  border-radius: 14px;
+  padding: 1.4rem 1.5rem 1.5rem;
+  box-shadow: var(--lift);
 }
 
-.panel h2 { margin: 0; font-size: 1.05rem; }
+.panel h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 640;
+  letter-spacing: -0.015em;
+}
 
-.hint { margin: 0.7rem 0 0; color: var(--ink-faint); font-size: 0.84rem; }
+.hint { margin: 0.75rem 0 0; color: var(--ink-faint); font-size: 0.84rem; max-width: 76ch; }
 .hint code { font-family: var(--mono); font-size: 0.86em; }
-.hint strong { color: var(--ink-soft); }
+.hint strong { color: var(--ink-soft); font-weight: 600; }
 
-/* ---------------------------------------------------------- the talking */
+/* ------------------------------------------------------------ the talking */
 
-.talk-top { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; }
+.talk-top { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: center; }
 .talk-top h2 { margin-right: auto; }
 
-.how { display: flex; gap: 0.4rem; align-items: center; font-size: 0.84rem; color: var(--ink-faint); }
+.how { display: flex; gap: 0.45rem; align-items: center; font-size: 0.82rem; color: var(--ink-faint); }
 .how select, .diary-controls select {
   font: inherit;
   font-size: 0.84rem;
-  padding: 0.3rem 0.4rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  padding: 0.38rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
   background: var(--card);
   color: var(--ink);
+  cursor: pointer;
 }
+.how select:hover, .diary-controls select:hover { border-color: var(--accent); }
+.how select:focus-visible, .diary-controls select:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 
 .said {
   list-style: none;
-  margin: 1rem 0 0;
-  padding: 0.9rem;
+  margin: 1.1rem 0 0;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
   background: var(--raised);
-  border-radius: 6px;
-  min-height: 20rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: clamp(13rem, 26vh, 22rem);
   max-height: 34rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+/* A conversation fills from the bottom, the way every telephone call anybody
+ * has ever had on a screen does. `margin-top: auto` on the first bubble rather
+ * than `justify-content`, because a scrolling flex column justified to its end
+ * can put its own top out of reach. */
+.said li:first-child { margin-top: auto; }
 
 /* Bubbles, and which end of the desk they came from. The caller's are on the
  * right in the accent, the agent's on the left on the card colour: the shape
@@ -232,38 +384,40 @@ main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
  * width of its parent by default, which gave every reply a bubble the width of
  * the panel however few words were in it. A bubble is a shape around what was
  * said, and one that is the same size whatever is said is a box. */
-.said li { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; max-width: min(46rem, 86%); }
+.said li { display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; max-width: min(44rem, 84%); }
 .said li[data-who='you'] { align-self: flex-end; align-items: flex-end; }
 
 .said .who {
-  font-size: 0.66rem;
+  font-size: 0.63rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--ink-faint);
-  padding: 0 0.2rem;
+  padding: 0 0.3rem;
 }
 
 .said .words {
-  padding: 0.55rem 0.8rem;
+  padding: 0.6rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 12px 12px 12px 3px;
+  border-radius: 14px 14px 14px 4px;
   background: var(--card);
+  box-shadow: var(--lift);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .said li[data-who='you'] .words {
-  border-radius: 12px 12px 3px 12px;
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  color: var(--accent-ink);
+  border-radius: 14px 14px 4px 14px;
+  background: var(--you-back);
+  border-color: var(--you-back);
+  color: var(--you-ink);
   font-weight: 500;
 }
 
 /* The bubble while it is still empty. It has no text in it, so it needs a
  * height of its own or it collapses to a line and the loader hangs off the
  * edge of nothing. */
-.said .words.thinking { padding: 0.6rem 0.9rem; }
+.said .words.thinking { padding: 0.65rem 0.95rem; }
 
 /* Three dots that rise in turn. The point is not decoration: the bubble goes
  * up the instant the message is sent, so the wait belongs to something visible
@@ -274,35 +428,25 @@ main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
   height: 0.4rem;
   border-radius: 50%;
   background: var(--accent);
-  animation: waiting 1.2s ease-in-out infinite;
-}
-.loader i:nth-child(2) { animation-delay: 0.18s; }
-.loader i:nth-child(3) { animation-delay: 0.36s; }
-
-@keyframes waiting {
-  0%, 65%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-0.25rem); }
+  opacity: 0.55;
 }
 
-/* Somebody who has asked for less movement still needs to see that the reply
- * is on its way, so the dots stay and stop moving rather than disappearing. */
-@media (prefers-reduced-motion: reduce) {
-  .loader i { animation: none; opacity: 0.55; }
-}
-
-#say-form { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
+#say-form { display: flex; gap: 0.6rem; margin-top: 1rem; }
 
 #text {
   flex: 1;
   min-width: 0;
   font: inherit;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
   background: var(--card);
   color: var(--ink);
+  transition: border-color 0.15s ease;
 }
-#text:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+#text::placeholder { color: var(--ink-faint); }
+#text:hover { border-color: var(--accent); }
+#text:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 
 /* A closed call, in the one place somebody would try to carry it on. Greyed
  * rather than removed: an input that disappears takes the transcript down the
@@ -310,66 +454,110 @@ main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
 #text:disabled {
   background: var(--paper);
   border-style: dashed;
+  border-color: var(--line-strong);
   color: var(--ink-faint);
   cursor: not-allowed;
 }
+#text:disabled:hover { border-color: var(--line-strong); }
 
 button {
-  font: 600 0.88rem/1 var(--ui);
-  padding: 0.65rem 1rem;
+  font: 600 0.88rem/1.2 var(--ui);
+  padding: 0.7rem 1.15rem;
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: 9px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 button:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+button:active { transform: translateY(1px); }
 button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-button:disabled { opacity: 0.5; cursor: default; }
+button:disabled { opacity: 0.45; cursor: default; transform: none; }
+button:disabled:hover { background: var(--accent); border-color: var(--accent); }
+
+/* On the band the accent is far too dark to ring anything, so the ring up there
+ * is the band's own bright green. A focus outline nobody can see is, for
+ * somebody on a keyboard, no focus outline at all. */
+.side:focus-visible,
+.seam summary:focus-visible {
+  outline: 3px solid var(--on-shell-bright);
+  outline-offset: 2px;
+}
 
 button.quiet {
   background: none;
   color: var(--ink-soft);
-  border-color: var(--line);
+  border-color: var(--line-strong);
   font-weight: 500;
   font-size: 0.8rem;
-  padding: 0.4rem 0.65rem;
+  padding: 0.45rem 0.75rem;
 }
-button.quiet:hover { background: var(--raised); color: var(--ink); border-color: var(--line); }
+button.quiet:hover { background: var(--raised); color: var(--ink); border-color: var(--accent); }
+button.quiet:disabled:hover { background: none; border-color: var(--line-strong); }
+
+/* Whether the telephone is audible.
+ *
+ * A dot rather than a speaker drawn out of two triangles: the button says
+ * "sound on" in words beside it, and a picture that has to be recognised
+ * before the words are read is a picture doing nothing. Filled and ringed in
+ * the accent when it is on, hollow when it is not — the same difference this
+ * page draws everywhere else between something happening and something not. */
+button.sound { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+button.sound .sound-mark {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button.sound[aria-pressed='false'] { color: var(--ink-faint); }
+
+button.sound[aria-pressed='false'] .sound-mark {
+  background: none;
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+}
 
 /* What a caller is not looking at: the sentences to try, and where the
  * conversation has got to. Ruled off so it does not read as part of the call. */
-.aside { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
+.aside { margin-top: 1.3rem; padding-top: 1.1rem; border-top: 1px dashed var(--line-strong); }
 .aside .hint { margin-top: 0; }
 
-.try { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.7rem 0 0; padding: 0; }
+.try { list-style: none; display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.8rem 0 0; padding: 0; }
 .try button {
   background: var(--raised);
   color: var(--ink-soft);
-  border-color: var(--line);
+  border-color: var(--line-strong);
+  border-radius: 999px;
   font-weight: 500;
-  font-size: 0.78rem;
-  padding: 0.35rem 0.6rem;
+  font-size: 0.79rem;
+  padding: 0.4rem 0.8rem;
 }
-.try button:hover { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent-line); }
+.try button:hover { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+.try button:disabled:hover { background: var(--raised); color: var(--ink-soft); border-color: var(--line-strong); }
 
 .stage {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem 1rem;
+  gap: 0.4rem 1.1rem;
   align-items: baseline;
-  margin-top: 0.9rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
   font-size: 0.8rem;
 }
-.stage .what { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
-.stage .value { color: var(--ink); }
+.stage .what { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.66rem; font-weight: 600; }
+.stage .value { color: var(--ink); font-weight: 500; }
 
 /* A handover is the agent doing the most useful thing available to it. Amber,
  * which on this page means exactly that, and never an error. */
 .handover {
-  margin: 0.8rem 0 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: 4px;
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 9px;
   border-left: 3px solid var(--warn);
   background: var(--warn-soft);
   color: var(--warn);
@@ -382,10 +570,10 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
  * something was booked. The grey is for an ending with neither — a call simply
  * closed — which says nothing more than that it is over. */
 .ended {
-  margin: 0.8rem 0 0;
-  padding: 0.6rem 0.8rem;
-  border-radius: 4px;
-  border-left: 3px solid var(--line);
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 9px;
+  border-left: 3px solid var(--line-strong);
   background: var(--raised);
   color: var(--ink-soft);
   font-size: 0.85rem;
@@ -403,129 +591,207 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
   color: var(--accent-ink);
 }
 
-/* ----------------------------------------------------------- the clinic */
+/* ------------------------------------------------------------- the clinic */
 
-.counts { display: flex; gap: 1.8rem; margin: 0 0 1rem; }
+.counts { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1.3rem; }
+.counts > div {
+  min-width: 6.5rem;
+  padding: 0.55rem 0.95rem 0.7rem;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
 .counts dt {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.11em;
   color: var(--ink-faint);
 }
-.counts dd { margin: 0.1rem 0 0; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.counts dd { margin: 0.15rem 0 0; font-size: 1.45rem; font-weight: 640; line-height: 1.1; font-variant-numeric: tabular-nums; }
 
-.tabs { display: flex; gap: 0.3rem; margin-bottom: 0.9rem; }
+.tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 1.1rem;
+  padding: 0.25rem;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  max-width: 100%;
+}
 
 .tabs button {
   background: none;
   border: 1px solid transparent;
-  color: var(--ink-faint);
+  border-radius: 999px;
+  color: var(--ink-soft);
   font-weight: 500;
-  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
 }
-.tabs button:hover { background: var(--raised); color: var(--ink); }
+.tabs button:hover { background: var(--card); color: var(--ink); border-color: var(--line-strong); }
 .tabs button[aria-selected='true'] {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
 }
+.tabs button[aria-selected='true']:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: var(--on-accent); }
 
-#find-form { display: flex; gap: 0.6rem; }
+#find-form { display: flex; gap: 0.6rem; max-width: 42rem; }
 #find {
   flex: 1;
   min-width: 0;
   font: inherit;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
   background: var(--card);
   color: var(--ink);
+  transition: border-color 0.15s ease;
 }
-#find:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+#find::placeholder { color: var(--ink-faint); }
+#find:hover { border-color: var(--accent); }
+#find:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 
-.exams, .bookings { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; max-height: 34rem; overflow-y: auto; }
+.exams, .bookings { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; max-height: 44rem; overflow-y: auto; }
 
 .exams li {
-  padding: 0.6rem 0.75rem;
-  border-radius: 5px;
-  border-left: 3px solid var(--line);
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 10px;
   background: var(--raised);
 }
 
-.exams li[data-bookable='false'] { border-left-color: var(--warn-line); background: var(--warn-soft); }
+.exams li[data-bookable='false'] { border-color: var(--warn-line); border-left-color: var(--warn); background: var(--warn-soft); }
 
-.exams .line { display: flex; gap: 0.7rem; align-items: baseline; flex-wrap: wrap; }
-.exams .line.small { margin-top: 0.15rem; font-size: 0.76rem; color: var(--ink-faint); }
-.exams .code { color: var(--accent-ink); font-weight: 600; min-width: 5rem; }
+/* Stopped short of the panel's own width. A row of four words whose last word
+ * is a hand's width from the other three is a table, not a list. */
+.exams .line { display: flex; gap: 0.8rem; align-items: baseline; flex-wrap: wrap; max-width: 58rem; }
+.exams .line.small { margin-top: 0.2rem; font-size: 0.76rem; color: var(--ink-faint); }
+.exams .code { color: var(--accent-ink); font-weight: 700; min-width: 5.5rem; }
 .exams .name { font-weight: 500; flex: 1; min-width: 10rem; }
 .exams .minutes { color: var(--ink-faint); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
-.exams .modality { text-transform: uppercase; letter-spacing: 0.06em; }
+.exams .modality { text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
 .exams .also { overflow-wrap: anywhere; }
 
-.exams .not-bookable { margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--warn); }
-.exams .matched { margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--accent); font-family: var(--mono); }
+.exams .not-bookable { margin: 0.4rem 0 0; font-size: 0.78rem; color: var(--warn); font-weight: 500; }
+.exams .matched { margin: 0.35rem 0 0; font-size: 0.74rem; color: var(--accent-ink); font-family: var(--mono); }
 
 .nothing { color: var(--ink-faint); font-style: italic; font-size: 0.85rem; padding: 0.6rem 0; }
 
-/* ------------------------------------------------------------- the diary */
+/* --------------------------------------------------------------- the diary */
 
-.diary-controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+.diary-controls { display: flex; gap: 0.9rem; align-items: center; flex-wrap: wrap; }
 
-.days { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.9rem; max-height: 34rem; overflow-y: auto; }
+.days { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; max-height: 44rem; overflow-y: auto; }
 
-.day { padding: 0.6rem 0.75rem; border-radius: 5px; background: var(--raised); }
-.day.empty { opacity: 0.6; }
-.day h3 { margin: 0 0 0.4rem; font-size: 0.85rem; font-weight: 600; }
-.day h3 .mono { color: var(--ink-faint); font-weight: 400; margin-left: 0.4rem; }
+.day { padding: 0.7rem 0.85rem; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); }
+.day.empty { opacity: 0.75; }
+.day h3 { margin: 0 0 0.5rem; font-size: 0.85rem; font-weight: 640; }
+.day h3 .mono { color: var(--ink-faint); font-weight: 400; margin-left: 0.45rem; }
 
-.room { display: flex; gap: 0.6rem; align-items: baseline; margin-bottom: 0.3rem; flex-wrap: wrap; }
-.room-name { flex: none; min-width: 4.5rem; color: var(--ink-faint); }
+/* A grid rather than a wrapping row. A room with more free time than fits on
+ * one line used to drop its times to the next line at the far left, under the
+ * name instead of beside it, so a busy room read as a room with no name and a
+ * name with no times. The column holds. */
+.room { display: grid; grid-template-columns: 4.5rem 1fr; gap: 0.3rem 0.7rem; align-items: baseline; margin-bottom: 0.45rem; }
+.room:last-child { margin-bottom: 0; }
+.room-name { color: var(--ink-faint); }
 
-.times { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.times { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .at {
   font-family: var(--mono);
   font-size: 0.74rem;
-  padding: 0.12rem 0.35rem;
-  border-radius: 3px;
+  padding: 0.16rem 0.4rem;
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
 .more { font-size: 0.74rem; color: var(--ink-faint); align-self: center; }
 
-/* ---------------------------------------------------------- the bookings */
+/* ------------------------------------------------------------ the bookings */
 
 .bookings li {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.8rem;
   align-items: baseline;
   flex-wrap: wrap;
-  padding: 0.6rem 0.75rem;
-  border-radius: 5px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--accent-line);
   border-left: 3px solid var(--accent);
+  border-radius: 10px;
   background: var(--accent-soft);
   font-size: 0.85rem;
+  max-width: 58rem;
 }
-.bookings .reference { color: var(--accent-ink); font-weight: 600; }
-.bookings .patient { font-weight: 500; }
+.bookings .reference { color: var(--accent-ink); font-weight: 700; }
+.bookings .patient { font-weight: 600; }
 .bookings .what { flex: 1; min-width: 8rem; color: var(--ink-soft); }
 .bookings .when, .bookings .room { color: var(--ink-faint); font-size: 0.78rem; }
 
-/* ------------------------------------------------------------------ foot */
+/* -------------------------------------------------------------------- foot */
 
-footer { padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 0; }
+footer { padding-top: 1.6rem; }
 footer p { margin: 0; color: var(--ink-faint); font-size: 0.82rem; max-width: 78ch; }
 footer code { font-family: var(--mono); font-size: 0.86em; }
-footer .by { margin-top: 0.5rem; }
+footer .by { margin-top: 0.6rem; color: var(--ink-soft); }
+footer .by strong { color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------------------ moving */
+
+/* None of this is decoration and none of it delays anything: a bubble that
+ * rises into place says a message arrived, and a panel that comes up says the
+ * page changed rather than blinked. All of it is off for somebody who has asked
+ * for less movement — including the loader, whose dots stay and stop, because a
+ * reply on its way still has to be visible. */
+@media (prefers-reduced-motion: no-preference) {
+  .loader i { animation: waiting 1.2s ease-in-out infinite; }
+  .loader i:nth-child(2) { animation-delay: 0.18s; }
+  .loader i:nth-child(3) { animation-delay: 0.36s; }
+
+  .said li { animation: arrives 0.3s cubic-bezier(0.2, 0.75, 0.3, 1) both; }
+  .panel:not([hidden]) { animation: turns 0.26s ease-out both; }
+  .ended:not([hidden]), .handover:not([hidden]) { animation: arrives 0.32s ease-out both; }
+  .reading .dot::after { animation: alive 2.8s ease-out infinite; }
+}
+
+@keyframes waiting {
+  0%, 65%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-0.25rem); }
+}
+
+@keyframes arrives {
+  from { opacity: 0; transform: translateY(0.55rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes turns {
+  from { opacity: 0; transform: translateY(0.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes alive {
+  0% { box-shadow: 0 0 0 0 rgba(127, 227, 208, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 0.55rem rgba(127, 227, 208, 0); }
+}
+
+/* ------------------------------------------------------------------ narrow */
 
 /* Narrow enough that two doors will not sit beside each other, they stack. The
- * line under each one becomes a line down its left, and the sentence saying
- * whose view it is stays — it is the reason the two are labelled at all, and a
- * phone is exactly where "chat / clinic" would be read as a filter. */
+ * sentence saying whose view it is stays — it is the reason the two are
+ * labelled at all, and a phone is exactly where "chat / clinic" would be read
+ * as a filter. */
 @media (max-width: 52rem) {
-  .sides { flex: 1 1 100%; max-width: none; flex-direction: column; padding-bottom: 0.9rem; }
-  .side { border-radius: 5px; border-bottom-width: 1px; border-left: 3px solid transparent; }
-  .side[aria-selected='true'] { border-bottom-color: var(--accent-line); border-left-color: var(--accent); }
-  .said { max-height: 24rem; }
+  .bar { padding-top: 1.1rem; }
+  .sides { flex: 1 1 100%; max-width: none; flex-direction: column; }
+  .said { max-height: 26rem; }
+  .said li { max-width: 94%; }
+  .panel { padding: 1.1rem 1rem 1.2rem; border-radius: 12px; }
+  .top .who h1 { font-size: 1.25rem; }
 }

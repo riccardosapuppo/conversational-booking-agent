@@ -132,6 +132,21 @@ def main() -> int:
                 page.locator(".talk").screenshot(path=str(DOCS / "handover.png"))
                 say("handover.png")
 
+                # 6. The telephone, where the reply is not only worded for
+                #    somebody listening but said to them. A picture cannot
+                #    carry sound, so what this one carries is that the page
+                #    offers it, says where the voice comes from, and is
+                #    reading a reference out one character at a time.
+                dialled(page, lambda: page.select_option("#channel", "voice"))
+
+                for words in ["MRI knee", "left, no contrast", "Anna Bianchi", "the second", "yes"]:
+                    page.fill("#text", words)
+                    page.click("#send")
+                    settled(page)
+
+                page.locator(".talk").screenshot(path=str(DOCS / "telephone.png"))
+                say("telephone.png")
+
                 page.close()
             finally:
                 browser.close()
@@ -144,6 +159,23 @@ def main() -> int:
 
     print(f"\nThe pictures in the README are of the console as it is now: {DOCS}")
     return 0
+
+
+def dialled(page, press) -> None:
+    """Does something that starts a new call, and waits for the new call.
+
+    Choosing a channel hangs the old call up before it dials another, so at the
+    moment the click returns the transcript still belongs to the call that has
+    gone and nothing is waiting for words in it. Waited for by the reference
+    rather than by the transcript being one bubble long, because the call being
+    replaced can be one bubble long too.
+    """
+    was = page.locator("#call-reference").text_content()
+    press()
+    page.wait_for_function(
+        "(was) => document.getElementById('call-reference').textContent !== was", arg=was
+    )
+    settled(page)
 
 
 def settled(page) -> None:

@@ -76,6 +76,17 @@ class TheFilesTheReadmePointsAt(unittest.TestCase):
                 )
 
 
+def counted(module: str = "") -> int:
+    """How many checks there are, all of them or one file's worth."""
+    here = Path(__file__).resolve().parents[1]
+    loader = unittest.TestLoader()
+
+    if module:
+        return loader.loadTestsFromName(module).countTestCases()
+
+    return loader.discover(start_dir=str(here / "tests"), top_level_dir=str(here)).countTestCases()
+
+
 class TheCountItQuotes(unittest.TestCase):
     def test_there_are_as_many_tests_as_it_says(self) -> None:
         # "# 144 tests" is a measurement, and a measurement typed into prose
@@ -83,19 +94,40 @@ class TheCountItQuotes(unittest.TestCase):
         # costs four lines and leaves the number either right or failing, which
         # are the only two states worth having: the alternative is a README
         # that sounds precise about a repository it stopped reading.
-        here = Path(__file__).resolve().parents[1]
         said = re.search(r"# (\d+) tests", readme())
         assert said is not None, "the README no longer says how many tests there are"
 
-        found = unittest.TestLoader().discover(
-            start_dir=str(here / "tests"), top_level_dir=str(here)
-        ).countTestCases()
+        found = counted()
 
         self.assertEqual(
             int(said.group(1)),
             found,
             f"the README says {said.group(1)} tests and this run found {found}",
         )
+
+    def test_and_as_many_of_them_need_a_browser_as_it_says(self) -> None:
+        """Three numbers about one suite, and not one of them typed twice.
+
+        "CI runs 174 of the 189" is the sentence that matters here, because it
+        is the one admitting that some of these checks are not run where it
+        counts. A figure like that going quietly stale is worse than never
+        having been quoted: it turns an honest disclosure into a wrong one, in
+        the paragraph whose whole purpose was to be trusted.
+        """
+        prose = readme()
+
+        needs = re.search(r"\*\*(\d+) of those tests need a browser", prose)
+        assert needs is not None, "the README no longer says how many tests need a browser"
+
+        split = re.search(r"\*\*CI runs (\d+) of the (\d+)\*\*", prose)
+        assert split is not None, "the README no longer says how many of them CI runs"
+
+        found = counted()
+        in_a_browser = counted("tests.test_console")
+
+        self.assertEqual(int(needs.group(1)), in_a_browser, "the browser count has drifted")
+        self.assertEqual(int(split.group(1)), found - in_a_browser, "CI runs a different number")
+        self.assertEqual(int(split.group(2)), found, "and out of a different total")
 
 
 if __name__ == "__main__":
