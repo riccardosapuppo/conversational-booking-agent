@@ -76,7 +76,7 @@ FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests.
 It said four until somebody counted the file. Then type at it:
 
 ```
-  agent : You are through to Centro Diagnostico Casalveglia. What can I book
+  agent : You are through to Kesterby Diagnostic Centre. What can I book
           for you?
 
   you   : knee
@@ -171,6 +171,24 @@ the agent doing the most useful thing available to it, and the reason travels
 with it.
 
 ![The agent putting a caller through to a colleague, with what it had noted so far](docs/handover.png)
+
+A handover also **ends the call**, and the page now ends with it. The service
+has always been clear about this — every reply carries `over`, and anything said
+on a finished call comes back as a 409 with a sentence saying which state it is
+in — but the console read straight past it: the input went on inviting a
+sentence, the service refused it, and a bubble appeared with nothing in it at
+all. So the input closes when the conversation does, the page says which ending
+it was, and "start again" is the way on. And whatever comes back that is not a
+reply — a refusal, a fallen network — is what the waiting bubble is filled with,
+in the service's own words. A bubble that promises words and produces none says
+the agent had nothing to say, which was never true.
+
+One more thing about that bubble: it goes up the moment a message is sent, and
+the reply is worked out in single milliseconds, so it was being filled inside
+the same frame it was drawn in and the wait was never once visible. It now
+stands for half a second at the least — a floor and not a delay, on every route
+into the transcript: the request leaves immediately and a slower answer is never
+held back for it.
 
 ### What is reading, said on the screen
 
@@ -298,7 +316,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 149 tests
+python -m unittest discover -s tests -t .   # 157 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
 python -m tools.screenshots                 # retakes the pictures above
@@ -308,6 +326,17 @@ python -m tools.screenshots                 # retakes the pictures above
 Playwright — `pip install -r requirements-checks.txt`. It is not in CI, which
 has no browser, and it says so and stops rather than reporting a success it did
 not earn. It is also what pressed the buttons that turned out to be lying.
+
+**Eight of those tests need the same browser.** Everything else here can be
+checked in Python, but a console that reads a correct answer wrongly cannot:
+`over` came back on every reply, the page stepped over it, and a call that had
+been handed to a person still offered somewhere to type — so the service refused
+the next sentence, as it should, and the page put an empty bubble on the screen.
+Nothing readable in `index.html` would have caught that.
+[tests/test_console.py](tests/test_console.py) starts the service, opens the
+console in Edge and presses the buttons. Without Playwright and Edge it skips,
+which is worth saying out loud: **CI runs 149 of the 157**, and it will be green
+on the day the console breaks that way again.
 
 The tests were written alongside the code they test, which makes them good at
 saying it still does what it did and poor at saying it does what a caller
@@ -363,15 +392,18 @@ the thing worth keeping, and the diary already has it.
 
 ## The clinic
 
-`data/clinic.json` describes a clinic that does not exist. **Centro Diagnostico
-Casalveglia is invented** — the name, the address, the rooms and every price in
-it. It is named like a real clinic rather than "Example Clinic" for one reason:
-a placeholder name makes everything standing next to it look like a placeholder
-too, and the exams and the diary here are not. It is deliberately
-untidy, because a tidy catalogue demonstrates nothing: an exam that needs both
-a side and a contrast, two that answer to "knee", one the agent may not book,
-one long enough that a free room is not enough for it, one modality with a
-single room. [A test](tests/test_build.py) fails if somebody tidies it up.
+`data/clinic.json` describes a clinic that does not exist. **Kesterby
+Diagnostic Centre is invented** — the name, the address, the rooms and every
+price in it. It is named like a real clinic rather than "Example Clinic" for one
+reason: a placeholder name makes everything standing next to it look like a
+placeholder too, and the exams and the diary here are not. That reason says
+nothing about which language it should be in, and for a while it was in Italian
+while every word around it — the console, the replies, this file — was in
+English, which made the one name on the screen the one thing that read as
+imported from somewhere else. It is deliberately untidy, because a tidy
+catalogue demonstrates nothing: an exam that needs both a side and a contrast,
+two that answer to "knee", one the agent may not book, one long enough that a
+free room is not enough for it, one modality with a single room. [A test](tests/test_build.py) fails if somebody tidies it up.
 
 **Long enough, measured:** the MRI room is open **09:00 to 13:00** on a Monday,
 one unbroken stretch, and across it the diary offers the **30**-minute knee

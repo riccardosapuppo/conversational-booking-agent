@@ -70,13 +70,13 @@ def main() -> int:
                     reduced_motion="reduce",
                 )
                 page.goto(f"{WHERE}/#caller", wait_until="networkidle")
-                page.wait_for_timeout(1200)
+                settled(page)
 
                 # 1. The caller's side, and the ambiguity that is the reason
                 #    the agent asks rather than guesses. Nothing of the clinic
                 #    is on this screen, because a caller has none of it.
                 page.click('[data-say="knee"]')
-                page.wait_for_timeout(1500)
+                settled(page)
                 page.screenshot(path=str(DOCS / "console.png"), full_page=True)
                 say("console.png")
 
@@ -92,7 +92,7 @@ def main() -> int:
                 # 3. A whole booking, and then crossing to the other side to
                 #    see what it cost the diary.
                 page.click("#again")
-                page.wait_for_timeout(800)
+                settled(page)
 
                 for words in [
                     "MRI knee",
@@ -103,7 +103,7 @@ def main() -> int:
                 ]:
                     page.fill("#text", words)
                     page.click("#send")
-                    page.wait_for_timeout(900)
+                    settled(page)
 
                 page.click('[data-side="desk"]')
                 page.click('[data-tab="bookings"]')
@@ -120,13 +120,15 @@ def main() -> int:
                 say("diary.png")
 
                 # 5. Stopping, and fetching a person. Drawn as the right
-                #    outcome rather than as a failure, which is what it is.
+                #    outcome rather than as a failure, which is what it is —
+                #    and the end of the call, which is what it also is: the
+                #    input closes and the page says so.
                 page.click('[data-side="caller"]')
                 page.click("#again")
-                page.wait_for_timeout(800)
+                settled(page)
                 page.fill("#text", "put me through to someone")
                 page.click("#send")
-                page.wait_for_timeout(1200)
+                settled(page)
                 page.locator(".talk").screenshot(path=str(DOCS / "handover.png"))
                 say("handover.png")
 
@@ -142,6 +144,18 @@ def main() -> int:
 
     print(f"\nThe pictures in the README are of the console as it is now: {DOCS}")
     return 0
+
+
+def settled(page) -> None:
+    """Waits for the reply rather than for a number of milliseconds.
+
+    Every bubble stands empty for at least half a second now, so that the loader
+    in it can be seen at all; a script that guessed at how long to wait was
+    guessing before that changed and would have had to be re-guessed after it.
+    What it actually wants is the reply, and the page says plainly when there is
+    not one yet — an empty bubble is a bubble still waiting.
+    """
+    page.wait_for_function("() => !document.querySelector('.words.thinking')")
 
 
 def say(name: str) -> None:

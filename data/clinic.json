@@ -1,8 +1,8 @@
 {
   "readme": "A clinic that does not exist, used to demonstrate this agent. Every exam, room and price here is invented. It is deliberately not a tidy catalogue: several entries are here because they break an assumption the code would otherwise be free to make.",
-  "name": "Centro Diagnostico Casalveglia",
+  "name": "Kesterby Diagnostic Centre",
   "opening_hours": "Monday to Friday, 8am to 6pm",
-  "address": "Via dei Gelsi 14, Casalveglia",
+  "address": "14 Mulberry Lane, Kesterby",
 
   "exams": [
     {

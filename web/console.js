@@ -17,6 +17,26 @@ const $ = (id) => document.getElementById(id);
 /** The call in progress, if there is one. */
 let call = null;
 
+/**
+ * Whether that call has finished.
+ *
+ * The service decides this and says so in `over` on every single reply. The
+ * page keeps the answer because the page is what has to stop offering an input
+ * for a conversation that has ended — this used to be read and dropped, and
+ * everything standing in the way of that below is the consequence.
+ */
+let over = false;
+
+/**
+ * What the input asks for while there is a call to say it into.
+ *
+ * Read off the page rather than written here twice, and kept because it is
+ * replaced while a call is over: a greyed box still holding "I need an MRI of
+ * the knee" is an invitation, and the whole point of greying it was to stop
+ * inviting.
+ */
+const ASKS = $('text').placeholder;
+
 // ──────────────────────────────────────────────── which side of the desk
 
 /** The two views, and the only two things the address will be believed about. */
@@ -135,6 +155,41 @@ function bubble(who) {
 }
 
 /**
+ * How long a bubble stays empty, at the very least.
+ *
+ * The reader is rules and the diary is in memory, so a reply is worked out in
+ * single milliseconds: the loader went up and was painted over inside the same
+ * frame, and nobody ever saw it. An answer that appears the instant a button is
+ * pressed reads as an answer that was already written — which is the one thing
+ * this page is about not being.
+ *
+ * Half a second: long enough to be seen as thinking, short enough that nobody
+ * waits for it. And it is a floor and not a delay — the request leaves at once,
+ * and an answer slower than this is never held back behind it.
+ */
+const LEAST = 500;
+
+/**
+ * Work, with that floor under it: the later of the two, never the sum.
+ *
+ * `Promise.all` on the work and a timer would be right about a success and
+ * wrong about everything else — a rejection settles the pair immediately, so a
+ * refusal or a dropped network would flash up faster than a reply, in the two
+ * cases where somebody most needs to see that something was actually tried. So
+ * the outcome is caught into a value, waited out, and thrown again afterwards
+ * for whoever was going to catch it.
+ */
+async function slowEnoughToSee(work) {
+  const [outcome] = await Promise.all([
+    work().then((value) => ({ value }), (problem) => ({ problem })),
+    new Promise((wake) => setTimeout(wake, LEAST)),
+  ]);
+
+  if ('problem' in outcome) throw outcome.problem;
+  return outcome.value;
+}
+
+/**
  * The reply's bubble, put up before there is a reply to put in it.
  *
  * This is the one behaviour worth copying from the chat this project came out
@@ -164,6 +219,98 @@ function fill(words, text) {
   words.parentElement.scrollIntoView({ block: 'nearest' });
 }
 
+/**
+ * The words of a reply — or an account of why there are none.
+ *
+ * `reply.reply` was read straight into the bubble, which is right up to the
+ * moment the thing that came back is not a reply. `undefined` in a bubble is a
+ * bubble with nothing in it, and an empty bubble tells somebody the agent
+ * answered and had nothing to say — which is a lie about a service that in
+ * fact said no, and said why.
+ */
+function saidBy(reply) {
+  const words = typeof reply?.reply === 'string' ? reply.reply.trim() : '';
+  return words || 'The service answered, but with nothing in it to say.';
+}
+
+/**
+ * What a refusal said, in the service's own words rather than in ours.
+ *
+ * The service writes the reason into `detail` — "this call is handed_over" —
+ * and it knows things this page does not, so it is quoted rather than
+ * paraphrased: a page that invents its own account of a state it is not keeping
+ * will eventually invent a wrong one.
+ *
+ * Not every `detail` is a sentence: a rejected body comes back as a list of
+ * objects. That is not forced into prose. The status is said instead, because a
+ * number somebody can look up beats a sentence somebody made up.
+ */
+async function refusal(response) {
+  let detail;
+
+  try {
+    detail = (await response.json())?.detail;
+  } catch {
+    // A body that is not JSON at all. Nothing to quote, so nothing is quoted.
+  }
+
+  return typeof detail === 'string' && detail.trim()
+    ? `The service would not take that: ${detail.trim()}.`
+    : `The service would not take that (HTTP ${response.status}).`;
+}
+
+/**
+ * Whether anything more can be said, and everything on the page that shows it.
+ *
+ * Disabled rather than hidden: an input that vanishes drags the transcript down
+ * the screen after it and reads as the page having lost something. The try-this
+ * buttons go with it, because they say sentences into the same call — a page
+ * that stops the typing and leaves the shortcuts live has two answers to one
+ * question, and the shortcuts are the ones somebody presses.
+ */
+function stillTalking(yes) {
+  over = !yes;
+
+  $('text').disabled = !yes;
+  $('text').placeholder = yes ? ASKS : 'This call has ended';
+  $('send').disabled = !yes;
+
+  for (const button of document.querySelectorAll('[data-say]')) {
+    button.disabled = !yes;
+  }
+}
+
+/**
+ * The call has ended, and the page says so — and says which ending it was.
+ *
+ * `over` arrives on every reply and was being ignored, so the input went on
+ * inviting sentences into a conversation the service had already closed. The
+ * service is right to answer those with a 409; the page had nothing to show for
+ * it and put an empty bubble on the screen. Both halves were wrong: a finished
+ * call should not be typed into, and somebody should be able to read why it
+ * finished without opening a developer console.
+ *
+ * Being handed to a person is an outcome of this agent and not a failure of it
+ * — stopping when it cannot be sure is the behaviour worth demonstrating — so
+ * this is drawn the way the handover line is, and never as an error. The way on
+ * from here is a new call, which is why "start again" is the one control left
+ * alive.
+ */
+function endsHere(reply) {
+  stillTalking(false);
+
+  const said = $('ended');
+  const booking = reply.booking;
+
+  said.hidden = false;
+  said.dataset.how = reply.handed_over ? 'handed' : reply.stage;
+  said.textContent = reply.handed_over
+    ? 'This call has ended: a person has it now, with everything said so far. That is where the agent stops on purpose. Press “start again” for a new call.'
+    : booking
+      ? `This call has ended: it is booked, and the reference is ${booking.reference}. Press “start again” for a new call.`
+      : 'This call has ended. Press “start again” for a new call.';
+}
+
 function showStage(reply) {
   $('stage').hidden = false;
   $('stage-name').textContent = reply.stage;
@@ -179,6 +326,10 @@ function showStage(reply) {
   } else {
     $('handover').hidden = true;
   }
+
+  // Last, because it reads the same reply and can only be right about the end
+  // of a call once everything else on the screen agrees about where it got to.
+  if (reply.over) endsHere(reply);
 }
 
 /**
@@ -191,19 +342,35 @@ function showStage(reply) {
 async function startACall({ clearing = true } = {}) {
   if (clearing) $('said').replaceChildren();
 
+  // Whatever the last call did, this one has not done it yet: the ending, and
+  // the closed input under it, belong to the call that ended and not to the
+  // page.
+  stillTalking(true);
+  $('ended').hidden = true;
+
   const first = waiting();
 
   try {
-    const response = await fetch('/calls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel: $('channel').value }),
-    });
+    const response = await slowEnoughToSee(() =>
+      fetch('/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: $('channel').value }),
+      })
+    );
+
+    if (!response.ok) {
+      // No call was started, so there is no reference to say anything on. The
+      // input stays live: pressing it again is a fair thing to try.
+      call = null;
+      fill(first, await refusal(response));
+      return null;
+    }
 
     const reply = await response.json();
 
     call = reply.call;
-    fill(first, reply.reply);
+    fill(first, saidBy(reply));
     showStage(reply);
     return reply;
   } catch {
@@ -218,6 +385,13 @@ async function startACall({ clearing = true } = {}) {
 async function say(words) {
   if (!words.trim()) return;
 
+  // A call that has ended is not a call. The input has already been taken away
+  // by the reply that ended it; the rule lives here as well because everything
+  // that speaks — the form, the try-this buttons, whatever is added next —
+  // comes through this one door, and a page that guards only the door it
+  // remembers is a page that will grow a second one.
+  if (over) return;
+
   // Before the bubbles, so a first message does not appear above the greeting
   // it is answering.
   if (!call) await startACall();
@@ -229,11 +403,13 @@ async function say(words) {
   let reply;
 
   try {
-    const response = await fetch(`/calls/${encodeURIComponent(call)}/said`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: words }),
-    });
+    const response = await slowEnoughToSee(() =>
+      fetch(`/calls/${encodeURIComponent(call)}/said`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: words }),
+      })
+    );
 
     if (response.status === 404) {
       // An hour of silence and the call is let go of. Starting a new one is the
@@ -245,8 +421,16 @@ async function say(words) {
       return;
     }
 
+    if (!response.ok) {
+      // Not a reply, so there is no `reply` in it to read. The bubble went up
+      // as a promise that something would be said in it, and this is what there
+      // is to say: the service's own reason for refusing.
+      fill(answer, await refusal(response));
+      return;
+    }
+
     reply = await response.json();
-    fill(answer, reply.reply);
+    fill(answer, saidBy(reply));
   } catch {
     fill(answer, 'The service did not answer. Nothing was said to the agent.');
     return;
@@ -268,8 +452,13 @@ $('say-form').addEventListener('submit', async (event) => {
   try {
     await say(words);
   } finally {
-    $('send').disabled = false;
-    $('text').focus();
+    // Not unconditionally: the reply that just arrived may have ended the call,
+    // and putting the button back here would undo, one line later, what that
+    // answer had just done.
+    if (!over) {
+      $('send').disabled = false;
+      $('text').focus();
+    }
   }
 });
 

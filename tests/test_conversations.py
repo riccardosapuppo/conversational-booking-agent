@@ -74,7 +74,7 @@ def diary() -> Diary:
 
 def agent(book: Diary | None = None) -> Agent:
     cat = catalogue()
-    return Agent(catalogue=cat, diary=book or diary(), reader=Rules(cat), clinic_name="Centro Diagnostico Casalveglia")
+    return Agent(catalogue=cat, diary=book or diary(), reader=Rules(cat), clinic_name="Kesterby Diagnostic Centre")
 
 
 class ABookingFromStartToFinish(unittest.TestCase):

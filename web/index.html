@@ -165,6 +165,22 @@
         </form>
 
         <!--
+          The end of the call, said out loud.
+
+          A conversation that is over is over: the service answers anything more
+          said on it with a 409 and a reason, and an input that goes on taking
+          typing is an invitation to find that out the hard way — which is
+          exactly how it was found. Filled from `over` on the reply, so the page
+          agrees with the service about whether there is still a call rather
+          than keeping its own opinion.
+
+          Not drawn as an error. Handing to a person is what this agent does
+          when it cannot be sure, and that is the outcome worth showing; "start
+          again", at the top of this panel, is the way on from either ending.
+        -->
+        <p class="ended" id="ended" hidden></p>
+
+        <!--
           Below here is the demonstration rather than the call: a caller has no
           idea what "stage" means and is not handed a list of sentences to try.
           It stays on this side because it is about this conversation, and is

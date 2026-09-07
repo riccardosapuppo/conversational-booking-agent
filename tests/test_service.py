@@ -46,7 +46,7 @@ class BeforeAnybodyRings(unittest.TestCase):
 
         said = client.get("/health").json()
 
-        self.assertEqual(said["clinic"], "Centro Diagnostico Casalveglia")
+        self.assertEqual(said["clinic"], "Kesterby Diagnostic Centre")
         self.assertGreater(said["exams"], 0)
         self.assertEqual(said["calls"], 0)
 

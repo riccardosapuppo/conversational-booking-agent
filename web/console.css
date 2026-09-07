@@ -304,6 +304,16 @@ main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
 }
 #text:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 
+/* A closed call, in the one place somebody would try to carry it on. Greyed
+ * rather than removed: an input that disappears takes the transcript down the
+ * screen with it and reads as the page having lost something. */
+#text:disabled {
+  background: var(--paper);
+  border-style: dashed;
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
 button {
   font: 600 0.88rem/1 var(--ui);
   padding: 0.65rem 1rem;
@@ -364,6 +374,33 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
   background: var(--warn-soft);
   color: var(--warn);
   font-size: 0.85rem;
+}
+
+/* How a call ended, under the input it has just closed. Neither ending is a
+ * failure, and neither is drawn as one: amber where a person has taken it over,
+ * which is what amber means everywhere else on this page, and the accent where
+ * something was booked. The grey is for an ending with neither — a call simply
+ * closed — which says nothing more than that it is over. */
+.ended {
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--line);
+  background: var(--raised);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.ended[data-how='handed'] {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.ended[data-how='booked'] {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 /* ----------------------------------------------------------- the clinic */
