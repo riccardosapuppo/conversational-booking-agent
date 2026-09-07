@@ -9,8 +9,8 @@ These exist because the agent was only ever reachable through a terminal. That
 made it invisible: somebody who wanted to see whether it works had to install
 Python, read a README and type at a prompt, and most people who might want to
 see it will not do any of that. The console this feeds is the same agent, over
-the same endpoints, with the clinic drawn beside it — so what the agent says can
-be checked against what the diary actually holds.
+the same endpoints, with the clinic a switch away from the conversation — so
+what the agent says can be checked against what the diary actually holds.
 """
 
 from __future__ import annotations

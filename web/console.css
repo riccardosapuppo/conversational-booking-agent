@@ -1,11 +1,13 @@
 /*
- * One screen, and it is a comparison of a different kind.
+ * One screen, one side of the desk at a time.
  *
- * The conversation on the left and the clinic on the right, at the same time.
- * An agent offering "Monday at 09:15" is only interesting if you can look
- * across, see that 09:15 was free, and then watch it stop being free — so the
- * two are side by side rather than in two places, and neither is a modal over
- * the other.
+ * The conversation and the clinic used to sit side by side, and the layout was
+ * the argument: look across and watch 09:15 stop being free. What it also said,
+ * without meaning to, was that somebody sees both — and nobody does. A caller
+ * has a conversation and no diary; the people answering have a diary and are
+ * not the ones being spoken to. So the two are two views with the switch at the
+ * top, each labelled with whose view it is, and the header is the first thing
+ * read on the page rather than a control tucked inside one of them.
  *
  * The colour is a deep green: a clinic, and a booking, and nothing about it
  * wants to be urgent. One accent, and it means one thing — a slot that is
@@ -94,39 +96,69 @@ body {
   gap: 1rem 2rem;
   align-items: flex-end;
   justify-content: space-between;
-  padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 1.2rem;
-  border-bottom: 1px solid var(--line);
+  padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 0;
   background: var(--card);
 }
 
-.who { display: flex; gap: 0.9rem; align-items: flex-start; }
+.who { display: flex; gap: 0.9rem; align-items: flex-start; padding-bottom: 1.1rem; }
 .who h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; }
 .who p { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.88rem; }
 
-.counts { display: flex; gap: 1.6rem; margin: 0; }
-.counts dt {
-  margin: 0;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--ink-faint);
-}
-.counts dd { margin: 0.1rem 0 0; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* --------------------------------------------------- whose view this is */
 
-/* --------------------------------------------------------------- the mode */
-
-.mode {
+/* Two doors, not two tabs. Each is wide enough to say who is standing behind
+ * it, because "chat" and "clinic" name the contents and the contents are not
+ * the distinction — and somebody arriving has about three seconds to get it. */
+.sides {
   display: flex;
-  gap: 0.7rem;
-  align-items: baseline;
-  margin: 0;
-  padding: 0.8rem clamp(1rem, 3vw, 2.4rem);
+  gap: 0.4rem;
+  align-items: stretch;
+  flex: 1 1 26rem;
+  max-width: 44rem;
+}
+
+.side {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.7rem 0.9rem 0.75rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-bottom: 3px solid var(--line);
+  border-radius: 5px 5px 0 0;
+  color: var(--ink-faint);
+  font: inherit;
+  cursor: pointer;
+}
+
+.side .side-name { font-weight: 600; font-size: 0.95rem; }
+.side .side-what { font-size: 0.76rem; line-height: 1.35; }
+
+.side:hover { background: var(--raised); color: var(--ink-soft); border-bottom-color: var(--ink-faint); }
+
+.side[aria-selected='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  border-bottom-color: var(--accent);
+  color: var(--accent-ink);
+}
+.side[aria-selected='true'] .side-what { color: var(--ink-soft); }
+
+/* ----------------------------------------------------- what is reading */
+
+.reading {
+  padding: 0.75rem clamp(1rem, 3vw, 2.4rem) 0.85rem;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: var(--raised);
   font-size: 0.88rem;
   color: var(--ink-soft);
 }
-.mode .dot {
+
+.reading .now { display: flex; gap: 0.7rem; align-items: baseline; margin: 0; }
+.reading .dot {
   flex: none;
   width: 0.55rem;
   height: 0.55rem;
@@ -134,17 +166,21 @@ body {
   background: var(--accent);
   transform: translateY(-0.1em);
 }
-.mode strong { color: var(--ink); }
+.reading strong { color: var(--ink); }
+.reading code { font-family: var(--mono); font-size: 0.88em; color: var(--accent-ink); }
+
+.seam { margin: 0.4rem 0 0 1.25rem; font-size: 0.84rem; }
+.seam summary { cursor: pointer; color: var(--ink-faint); width: fit-content; }
+.seam summary:hover { color: var(--accent-ink); }
+.seam summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+.seam-said { max-width: 76ch; padding: 0.3rem 0 0 0.2rem; }
+.seam-said p { margin: 0.5rem 0 0; }
+.seam-said .plain { color: var(--ink-faint); }
 
 /* ----------------------------------------------------------------- layout */
 
-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.1rem;
-  padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0;
-  align-items: start;
-}
+main { padding: 1.2rem clamp(1rem, 3vw, 2.4rem) 0; }
 
 .panel {
   background: var(--card);
@@ -178,32 +214,81 @@ main {
 .said {
   list-style: none;
   margin: 1rem 0 0;
-  padding: 0.8rem;
+  padding: 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.75rem;
   background: var(--raised);
-  border-radius: 5px;
-  min-height: 16rem;
-  max-height: 26rem;
+  border-radius: 6px;
+  min-height: 20rem;
+  max-height: 34rem;
   overflow-y: auto;
 }
 
-.said li { display: flex; gap: 0.7rem; align-items: baseline; }
+/* Bubbles, and which end of the desk they came from. The caller's are on the
+ * right in the accent, the agent's on the left on the card colour: the shape
+ * says who is speaking before any label is read. */
+/* `align-items` and not only `align-self`: a column flex item stretches to the
+ * width of its parent by default, which gave every reply a bubble the width of
+ * the panel however few words were in it. A bubble is a shape around what was
+ * said, and one that is the same size whatever is said is a box. */
+.said li { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; max-width: min(46rem, 86%); }
+.said li[data-who='you'] { align-self: flex-end; align-items: flex-end; }
 
 .said .who {
-  flex: none;
-  width: 3.4rem;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-faint);
-  text-align: right;
+  padding: 0 0.2rem;
 }
 
-.said .words { white-space: pre-wrap; overflow-wrap: anywhere; }
-.said li[data-who='you'] .words { color: var(--accent-ink); font-weight: 500; }
-.said li[data-who='you'] .who { color: var(--accent); }
+.said .words {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px 12px 12px 3px;
+  background: var(--card);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.said li[data-who='you'] .words {
+  border-radius: 12px 12px 3px 12px;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+
+/* The bubble while it is still empty. It has no text in it, so it needs a
+ * height of its own or it collapses to a line and the loader hangs off the
+ * edge of nothing. */
+.said .words.thinking { padding: 0.6rem 0.9rem; }
+
+/* Three dots that rise in turn. The point is not decoration: the bubble goes
+ * up the instant the message is sent, so the wait belongs to something visible
+ * instead of to a screen that appears not to have noticed. */
+.loader { display: inline-flex; gap: 0.3rem; align-items: center; height: 1.1em; }
+.loader i {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: waiting 1.2s ease-in-out infinite;
+}
+.loader i:nth-child(2) { animation-delay: 0.18s; }
+.loader i:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes waiting {
+  0%, 65%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-0.25rem); }
+}
+
+/* Somebody who has asked for less movement still needs to see that the reply
+ * is on its way, so the dots stay and stop moving rather than disappearing. */
+@media (prefers-reduced-motion: reduce) {
+  .loader i { animation: none; opacity: 0.55; }
+}
 
 #say-form { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
 
@@ -242,7 +327,12 @@ button.quiet {
 }
 button.quiet:hover { background: var(--raised); color: var(--ink); border-color: var(--line); }
 
-.try { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.8rem 0 0; padding: 0; }
+/* What a caller is not looking at: the sentences to try, and where the
+ * conversation has got to. Ruled off so it does not read as part of the call. */
+.aside { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
+.aside .hint { margin-top: 0; }
+
+.try { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.7rem 0 0; padding: 0; }
 .try button {
   background: var(--raised);
   color: var(--ink-soft);
@@ -259,8 +349,6 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
   gap: 0.4rem 1rem;
   align-items: baseline;
   margin-top: 0.9rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--line);
   font-size: 0.8rem;
 }
 .stage .what { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
@@ -279,6 +367,16 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
 }
 
 /* ----------------------------------------------------------- the clinic */
+
+.counts { display: flex; gap: 1.8rem; margin: 0 0 1rem; }
+.counts dt {
+  margin: 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+}
+.counts dd { margin: 0.1rem 0 0; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .tabs { display: flex; gap: 0.3rem; margin-bottom: 0.9rem; }
 
@@ -310,7 +408,7 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
 }
 #find:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 
-.exams, .bookings { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; max-height: 30rem; overflow-y: auto; }
+.exams, .bookings { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; max-height: 34rem; overflow-y: auto; }
 
 .exams li {
   padding: 0.6rem 0.75rem;
@@ -338,7 +436,7 @@ button.quiet:hover { background: var(--raised); color: var(--ink); border-color:
 
 .diary-controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
 
-.days { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.9rem; max-height: 30rem; overflow-y: auto; }
+.days { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.9rem; max-height: 34rem; overflow-y: auto; }
 
 .day { padding: 0.6rem 0.75rem; border-radius: 5px; background: var(--raised); }
 .day.empty { opacity: 0.6; }
@@ -384,7 +482,13 @@ footer p { margin: 0; color: var(--ink-faint); font-size: 0.82rem; max-width: 78
 footer code { font-family: var(--mono); font-size: 0.86em; }
 footer .by { margin-top: 0.5rem; }
 
-@media (max-width: 62rem) {
-  main { grid-template-columns: minmax(0, 1fr); }
-  .said { max-height: 20rem; }
+/* Narrow enough that two doors will not sit beside each other, they stack. The
+ * line under each one becomes a line down its left, and the sentence saying
+ * whose view it is stays — it is the reason the two are labelled at all, and a
+ * phone is exactly where "chat / clinic" would be read as a filter. */
+@media (max-width: 52rem) {
+  .sides { flex: 1 1 100%; max-width: none; flex-direction: column; padding-bottom: 0.9rem; }
+  .side { border-radius: 5px; border-bottom-width: 1px; border-left: 3px solid transparent; }
+  .side[aria-selected='true'] { border-bottom-color: var(--accent-line); border-left-color: var(--accent); }
+  .said { max-height: 24rem; }
 }

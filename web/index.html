@@ -12,18 +12,21 @@
 
   <body>
     <!--
-      The agent, with the clinic open beside it.
+      Two sides of one desk, and only ever one of them on the screen.
 
-      Until this existed the only way to see the agent work was to install
+      Until this page existed the only way to see the agent work was to install
       Python and type at a prompt, which meant most people who might want to see
       it never would. What is here is the same agent over the same endpoints —
       nothing on this page books anything, and there is no second path through
       the rules for a screen to take.
 
-      The layout is the argument. The conversation is on the left, and what the
-      clinic actually holds is on the right, **at the same time**: an agent
-      offering "Monday at 09:15" is only interesting if you can look across and
-      see that 09:15 was free, and then watch it stop being free.
+      It used to put the conversation and the clinic side by side, which read as
+      one screen with two halves and was nobody's view of anything: a caller
+      cannot see the diary, and the people answering the telephone are not the
+      ones being spoken to. Two views, each named for whose it is, say plainly
+      what the side-by-side layout only implied — and the switch is in the
+      header, where somebody looks first, rather than a tab among the clinic's
+      own tabs.
     -->
 
     <header class="top">
@@ -41,26 +44,92 @@
         </div>
       </div>
 
-      <dl class="counts">
-        <div><dt>exams</dt><dd id="count-exams">—</dd></div>
-        <div><dt>rooms</dt><dd id="count-rooms">—</dd></div>
-        <div><dt>booked</dt><dd id="count-booked">0</dd></div>
-      </dl>
+      <!--
+        Which side you are standing on. Each one says whose view it is in as
+        many words, because "chat" and "clinic" name the contents rather than
+        the person — and the person is the whole distinction.
+      -->
+      <nav class="sides" role="tablist" aria-label="Which side of the desk to stand on">
+        <button
+          type="button"
+          class="side"
+          role="tab"
+          data-side="caller"
+          id="tab-caller"
+          aria-controls="side-caller"
+          aria-selected="true"
+        >
+          <span class="side-name">The caller&rsquo;s side</span>
+          <span class="side-what">what somebody ringing up sees &mdash; the conversation, and nothing else</span>
+        </button>
+
+        <button
+          type="button"
+          class="side"
+          role="tab"
+          data-side="desk"
+          id="tab-desk"
+          aria-controls="side-desk"
+          aria-selected="false"
+        >
+          <span class="side-name">The clinic&rsquo;s side</span>
+          <span class="side-what">what the people answering see &mdash; the catalogue, the diary, what has been booked</span>
+        </button>
+      </nav>
     </header>
 
-    <p class="mode">
-      <span class="dot" aria-hidden="true"></span>
-      <span>
-        <strong>No model, no key, no account.</strong> The agent runs on rules,
-        which is why it can say <em>why</em> it asked what it asked — and why it
-        stops and fetches a person instead of guessing. This clinic does not
-        exist and nothing here is kept between two runs.
-      </span>
-    </p>
+    <!--
+      What is reading, on the page rather than only in the prose.
+
+      Somebody types a sentence, gets a sensible answer back, and has no way at
+      all to tell whether a model was involved. That ambiguity flatters this
+      project and it should not: the reader is rules, on purpose, and the reason
+      it is worth saying out loud is that the socket it sits in is one method
+      wide. Everything in this strip is read from `/reading`, which asks the
+      object that is actually doing the reading — so a model-backed reader would
+      change what this says without a line of this page changing.
+    -->
+    <section class="reading" aria-label="What is reading">
+      <p class="now">
+        <span class="dot" aria-hidden="true"></span>
+        <span>
+          Reading with <strong id="reader-name">…</strong>, from
+          <code class="mono" id="reader-where">…</code> &mdash;
+          <span id="reader-default">asking the service what it is using…</span>
+        </span>
+      </p>
+
+      <details class="seam">
+        <summary>Where a model would go, and why there is only one such place</summary>
+
+        <div class="seam-said">
+          <p>
+            One file has an opinion about what an English sentence means.
+            Everything after it &mdash; the flow, the catalogue, the diary
+            &mdash; works on a <code>Reading</code>, which is plain data. So the
+            whole of the agent&rsquo;s behaviour can be tested without a model,
+            and a model cannot reach past that line to change any of it.
+          </p>
+          <p>
+            The socket is the <code id="seam-protocol">Reader</code> protocol,
+            and it is <strong id="seam-wide">…</strong> wide:
+            <code class="mono" id="seam-methods">…</code>. A model-backed reader
+            is a class with that method, handed to the service when it starts.
+            There is no second place to put one.
+          </p>
+          <p class="plain">
+            Nothing is connected to a model here, and this page will never ask
+            you for a key &mdash; a demonstration that wants an account before
+            it does anything is a demonstration nobody runs. This clinic does
+            not exist and nothing here is kept between two runs.
+          </p>
+        </div>
+      </details>
+    </section>
 
     <main>
-      <!-- ─────────────────────────────────────────────── the conversation -->
-      <section class="panel talk">
+      <!-- ──────────────────────────────── the caller's side: the conversation -->
+      <section class="panel talk" id="side-caller" role="tabpanel" aria-labelledby="tab-caller">
         <div class="talk-top">
           <h2>Talk to it</h2>
 
@@ -80,6 +149,13 @@
           rather than listed, and a reference is spelled out twice.
         </p>
 
+        <!--
+          The transcript. The bubble for a reply is put here the moment the
+          message that caused it is sent, with a loader in it, and the words
+          replace the loader when they arrive. Nothing about the agent is faster
+          for it; what changes is that somebody can see that something is
+          happening, rather than watching a screen that did nothing at all.
+        -->
         <ol class="said" id="said" aria-live="polite"></ol>
 
         <form id="say-form">
@@ -89,7 +165,10 @@
         </form>
 
         <!--
-          Things to try, and what each one is meant to do.
+          Below here is the demonstration rather than the call: a caller has no
+          idea what "stage" means and is not handed a list of sentences to try.
+          It stays on this side because it is about this conversation, and is
+          set apart so it does not read as something a caller sees.
 
           `data-expect` is not decoration: a test says each of these sentences
           to the real agent and fails if what comes back is not what the button
@@ -99,28 +178,42 @@
           A page that promises a behaviour is a page that has to be checked
           against the thing that behaves.
         -->
-        <ul class="try" id="try">
-          <li><button type="button" data-say="knee" data-expect="asks-back">something ambiguous</button></li>
-          <li><button type="button" data-say="I need an MRI of the left knee without contrast" data-expect="asks-back">something complete</button></li>
-          <li><button type="button" data-say="a CT angiogram" data-expect="handover">one it may not book</button></li>
-          <li><button type="button" data-say="put me through to someone" data-expect="handover">asking for a person</button></li>
-          <li><button type="button" data-say="I want to change a booking" data-expect="handover">something it cannot verify</button></li>
-        </ul>
+        <div class="aside">
+          <p class="hint">Not part of the call &mdash; sentences to try, and where the conversation has got to.</p>
 
-        <!-- Where the conversation has got to, and what it is holding. -->
-        <div class="stage" id="stage" hidden>
-          <span class="what">stage</span>
-          <span class="value mono" id="stage-name">—</span>
-          <span class="what">reference</span>
-          <span class="value mono" id="call-reference">—</span>
+          <ul class="try" id="try">
+            <li><button type="button" data-say="knee" data-expect="asks-back">something ambiguous</button></li>
+            <li><button type="button" data-say="I need an MRI of the left knee without contrast" data-expect="asks-back">something complete</button></li>
+            <li><button type="button" data-say="a CT angiogram" data-expect="handover">one it may not book</button></li>
+            <li><button type="button" data-say="put me through to someone" data-expect="handover">asking for a person</button></li>
+            <li><button type="button" data-say="I want to change a booking" data-expect="handover">something it cannot verify</button></li>
+          </ul>
+
+          <div class="stage" id="stage" hidden>
+            <span class="what">stage</span>
+            <span class="value mono" id="stage-name">—</span>
+            <span class="what">reference</span>
+            <span class="value mono" id="call-reference">—</span>
+          </div>
+
+          <p class="handover" id="handover" hidden></p>
         </div>
-
-        <p class="handover" id="handover" hidden></p>
       </section>
 
-      <!-- ────────────────────────────────────────────────────── the clinic -->
-      <section class="panel clinic">
-        <div class="tabs" role="tablist">
+      <!-- ─────────────────────────────── the clinic's side: what it holds -->
+      <section class="panel clinic" id="side-desk" role="tabpanel" aria-labelledby="tab-desk" hidden>
+        <!--
+          The counts live on this side rather than in the header: how many exams
+          and how many rooms is something the people answering know, and a
+          caller neither sees it nor could do anything with it.
+        -->
+        <dl class="counts">
+          <div><dt>exams</dt><dd id="count-exams">—</dd></div>
+          <div><dt>rooms</dt><dd id="count-rooms">—</dd></div>
+          <div><dt>booked</dt><dd id="count-booked">0</dd></div>
+        </dl>
+
+        <div class="tabs" role="tablist" aria-label="What to look at">
           <button type="button" role="tab" data-tab="catalogue" aria-selected="true">The exams</button>
           <button type="button" role="tab" data-tab="diary" aria-selected="false">The diary</button>
           <button type="button" role="tab" data-tab="bookings" aria-selected="false">Booked</button>
@@ -135,9 +228,10 @@
           </form>
 
           <p class="hint">
-            This is <strong>the agent's own search</strong>, not a filter written
-            for this screen. Type <code>knee</code> and you get the two exams
-            that answer to it — which is the reason it asks "did you mean".
+            This is <strong>the agent&rsquo;s own search</strong>, not a filter
+            written for this screen. Type <code>knee</code> and you get the two
+            exams that answer to it &mdash; which is the reason it asks
+            &ldquo;did you mean&rdquo;.
           </p>
 
           <ul class="exams" id="exams"></ul>
@@ -161,8 +255,8 @@
           <p class="hint">
             A diary is only free <em>for something</em>. Thirty minutes free does
             not mean an exam needing forty-five fits there, so the length is a
-            control rather than an assumption — and a slot held during a call
-            disappears from here while the call is open.
+            control rather than an assumption &mdash; and a slot held during a
+            call disappears from here while the call is open.
           </p>
 
           <div class="days" id="days"></div>
@@ -171,9 +265,9 @@
         <!-- What the agent has actually booked. -->
         <div class="tab" id="tab-bookings" hidden>
           <p class="hint">
-            What the agent has booked, this run. Book something on the left and
-            it appears here — and the time it took stops being offered in the
-            diary.
+            What the agent has booked, this run. Book something on the
+            caller&rsquo;s side and it appears here &mdash; and the time it took
+            stops being offered in the diary.
           </p>
           <ul class="bookings" id="bookings"></ul>
         </div>
@@ -182,10 +276,12 @@
 
     <footer>
       <p>
-        A demonstration. <code id="clinic-file">data/clinic.json</code> describes
-        a clinic that does not exist, and is deliberately untidy — two exams
-        answer to "knee", one needs a side and a contrast, one may not be booked
-        by an agent at all, and one modality has a single room.
+        A demonstration. The clinic named at the top is invented, and so is
+        every exam, room and price in
+        <code id="clinic-file">data/clinic.json</code>, which is deliberately
+        untidy &mdash; two exams answer to &ldquo;knee&rdquo;, one needs a side
+        and a contrast, one may not be booked by an agent at all, and one
+        modality has a single room.
       </p>
       <p class="by">Developed by <strong>Riccardo Sapuppo</strong></p>
     </footer>

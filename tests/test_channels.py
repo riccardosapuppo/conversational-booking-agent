@@ -97,9 +97,9 @@ class EverythingTheAgentEverSays(unittest.TestCase):
     unsayable = (
         (re.compile(r"\d+\)"), "a numbered list"),
         (re.compile(r"\d{1,2}:\d{2}"), "a time written in digits"),
-        # A month after the digits, and not just any capitalised word: "12
-        # Example Street" is a house number, and a house number is perfectly
-        # sayable. The first version of this line failed the opening hours.
+        # A month after the digits, and not just any capitalised word: a
+        # house number beside a street name is perfectly sayable, and the
+        # first version of this line matched one and failed the opening hours.
         (
             re.compile(
                 r"\b\d{2} (January|February|March|April|May|June|July"

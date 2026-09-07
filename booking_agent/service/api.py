@@ -42,6 +42,22 @@ from booking_agent.service.calls import Calls
 LONGEST = 2000
 
 
+def methods_of(protocol: type) -> list[str]:
+    """What a protocol actually requires, asked of the protocol itself.
+
+    "The Reader protocol is one method wide" is the claim the whole seam rests
+    on, and written into prose it is a sentence that stops being true the first
+    time somebody adds a second method and does not reread the README. Counted
+    off the class it cannot go stale, which is the only reason this is a
+    function rather than a string.
+    """
+    return sorted(
+        name
+        for name, member in vars(protocol).items()
+        if not name.startswith("_") and callable(member)
+    )
+
+
 class Start(BaseModel):
     channel: str = Field(default="chat", max_length=40)
 
@@ -81,10 +97,11 @@ def build(
     clinic and its own clock, and two of them cannot interfere with each other.
     """
     where = clinic or default()
+    reading = reader or Rules(where.catalogue)
     agent = Agent(
         catalogue=where.catalogue,
         diary=where.diary,
-        reader=reader or Rules(where.catalogue),
+        reader=reading,
         clinic_name=where.name,
         opening_hours=where.opening_hours,
         address=where.address,
@@ -180,6 +197,28 @@ def build(
     def hang_up(reference: str) -> None:
         if not calls.forget(reference):
             raise HTTPException(status_code=404, detail="no such call")
+
+    @api.get("/reading")
+    def what_is_reading() -> dict:
+        """Which reader is attached, and how wide the socket it sits in is.
+
+        Here because from outside a conversation there is no way to tell what
+        understood the sentence. Rules and a model give back the same shape,
+        which is the point of the boundary and also the reason a demonstration
+        can silently take credit for a model it has not got. The answer comes
+        off the object in use, so a different reader changes what the console
+        says without a line of the console changing.
+        """
+        kind = type(reading)
+        return {
+            "reader": kind.__name__,
+            "module": kind.__module__,
+            # Whether this is what the service builds when nobody hands it a
+            # reader. Rules are the default on purpose: a demonstration that
+            # wants a key before it does anything is one nobody runs.
+            "default": reader is None,
+            "seam": {"protocol": Reader.__name__, "methods": methods_of(Reader)},
+        }
 
     # The clinic, read-only: the catalogue, the diary and the book.
     #

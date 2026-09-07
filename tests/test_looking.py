@@ -15,6 +15,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 
 from booking_agent.clinic.build import default
+from booking_agent.conversation.reading import Reading, Rules
 from booking_agent.service.api import build
 
 
@@ -88,7 +89,7 @@ class LookingAtTheClinic(unittest.TestCase):
         self.assertLessEqual(len(said["days"]), 14)
 
     def test_a_booking_stops_the_time_being_offered(self) -> None:
-        """The whole reason the diary is on the screen beside the conversation."""
+        """The whole reason the diary is a switch away from the conversation."""
         before = self.client.get("/diary", params={"days": 3, "minutes": 30}).json()
         free_before = {
             (room["room"], at) for day in before["days"] for room in day["rooms"] for at in room["free"]
@@ -147,6 +148,27 @@ class TheConsole(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/html", response.headers["content-type"])
         self.assertIn("Talk to it", response.text)
+
+    def test_it_offers_two_sides_and_each_one_has_a_view_behind_it(self) -> None:
+        """A door labelled with whose view it is, and a room behind the door.
+
+        The two used to be one screen with a left and a right, which was
+        nobody's view of anything: a caller cannot see the diary and the people
+        answering are not the ones being spoken to. Two switches, two panels,
+        and a switch pointing at a panel that is not there would be a dead
+        button — the sort of thing that goes unnoticed because the other one
+        still works.
+        """
+        import re
+        from pathlib import Path
+
+        page = (Path(__file__).resolve().parent.parent / "web" / "index.html").read_text(encoding="utf-8")
+
+        sides = re.findall(r'data-side="([a-z]+)"', page)
+        self.assertEqual(sorted(sides), ["caller", "desk"])
+
+        for side in sides:
+            self.assertIn(f'id="side-{side}"', page, f"nothing on the page to show for {side}")
 
     def test_and_the_api_still_wins_over_it(self) -> None:
         """A static mount at "/" placed first swallows every route above it."""
@@ -273,3 +295,70 @@ class WhatTheButtonsPromise(unittest.TestCase):
                     ),
                     f'"{label}" handed over for a reason nothing knows about',
                 )
+
+
+class WhatIsReading(unittest.TestCase):
+    """That the console can say what read the sentence, and is not guessing.
+
+    Somebody types something, gets a sensible answer, and has no way to tell
+    whether a model was involved. That ambiguity flatters this project and it
+    should not: the reader is rules, deliberately, and the interesting part is
+    how narrow the socket it sits in is. So the page says which reader is
+    attached — and these are the checks that it says it because it asked the
+    object, rather than because somebody typed the word "Rules" into the page.
+    """
+
+    def reading(self, **built) -> dict:
+        client = TestClient(build(default(), clock=lambda: datetime(2026, 9, 7, 8, 0), **built))
+        return client.get("/reading").json()
+
+    def test_it_names_the_reader_the_service_actually_built(self) -> None:
+        said = self.reading()
+
+        self.assertEqual(said["reader"], Rules.__name__)
+        self.assertEqual(said["module"], Rules.__module__)
+        self.assertTrue(said["default"], "rules are what this builds when nobody hands it a reader")
+
+    def test_and_names_whatever_else_is_handed_in_instead(self) -> None:
+        """The page is not describing the design; it is reporting the object."""
+        said = self.reading(reader=CatchesNothing())
+
+        self.assertEqual(said["reader"], "CatchesNothing")
+        self.assertFalse(said["default"])
+
+    def test_the_seam_is_measured_rather_than_asserted(self) -> None:
+        """"One method wide" is a claim, and prose cannot notice a second one."""
+        seam = self.reading()["seam"]
+
+        self.assertEqual(seam["protocol"], "Reader")
+        self.assertEqual(seam["methods"], ["read"])
+
+    def test_and_the_named_reader_is_the_one_the_conversation_goes_through(self) -> None:
+        """Otherwise the strip is decoration: true, and about nothing.
+
+        The same six sentences that book an appointment through the rules book
+        nothing at all through a reader that understands none of them — which
+        is what makes swapping one in a change of behaviour rather than a
+        change of label.
+        """
+        client = TestClient(
+            build(default(), reader=CatchesNothing(), clock=lambda: datetime(2026, 9, 7, 8, 0))
+        )
+
+        call = client.post("/calls", json={"channel": "chat"}).json()["call"]
+        for words in ("MRI knee", "left, no contrast", "Anna Bianchi", "the first", "yes"):
+            client.post(f"/calls/{call}/said", json={"text": words})
+
+        self.assertEqual(client.get("/bookings").json()["bookings"], [])
+
+
+class CatchesNothing:
+    """A reader with neither rules nor a model in it.
+
+    Here to be handed in: a class with one method is the whole of what the seam
+    asks for, and a test that could not write one in four lines would be
+    evidence that the seam is wider than the README says.
+    """
+
+    def read(self, text: str, *, expecting: str = "") -> Reading:
+        return Reading(intent="unclear")

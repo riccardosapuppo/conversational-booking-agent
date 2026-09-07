@@ -35,22 +35,31 @@ pip install -r requirements.txt
 python -m booking_agent.service
 ```
 
-That opens the console on <http://127.0.0.1:8000>: the agent on the left, and
-the clinic it is booking in on the right, at the same time.
+That opens the console on <http://127.0.0.1:8000>: the agent, and the clinic it
+is booking in, as the two sides of one desk.
 
-![The console: a conversation where the agent asks which knee exam was meant, beside the catalogue showing the two exams that answer to the word](docs/console.png)
+![The console on the caller's side: the conversation, with the agent asking which knee exam was meant](docs/console.png)
 
-**The layout is the argument.** An agent offering "Monday at 09:15" is only
-interesting if you can look across, see that 09:15 was free, and then watch it
-stop being free. So the diary is open beside the conversation rather than
-somewhere else, and the exam list is searched with **the agent’s own search** —
-not a filter written for the screen, which would be a second thing to keep in
-step and the one that quietly stopped agreeing.
+**Two sides, one at a time, each labelled with whose it is.** The *caller's
+side* is the conversation and nothing else, because that is all somebody
+ringing up has. The *clinic's side* is the catalogue, the diary and what has
+been booked, because that is what the people answering are looking at while
+they talk. The two used to sit next to each other on one screen, which read
+well and was nobody's view of anything — a caller cannot see the diary, and the
+people with the diary open are not the ones being spoken to. Which side you are
+on is in the address, `#caller` or `#desk`, so a reload leaves you where you
+were and a link opens where you sent it.
+
+Crossing over is the argument. An agent offering "Monday at 09:15" is only
+interesting if you can go and look at the diary, see that 09:15 was free, book
+it, and watch it stop being free — and the exam list is searched with **the
+agent’s own search**, not a filter written for the screen, which would be a
+second thing to keep in step and the one that quietly stopped agreeing.
 
 **Nothing on that page books anything.** Every booking goes through the
 conversation, which is where the rules that guard it live; a screen with its own
-path to the diary would be the path nobody tested. The views it reads are
-read-only, and a test tries every other verb on each of them.
+path to the diary would be the path nobody tested. The views the clinic's side
+reads are read-only, and a test tries every other verb on each of them.
 
 The browser is not opened in CI, with no terminal attached, or with `--no-open`
 (or `NO_OPEN=1`), and it says which of those happened.
@@ -67,7 +76,8 @@ FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests.
 It said four until somebody counted the file. Then type at it:
 
 ```
-  agent : You are through to Example Clinic. What can I book for you?
+  agent : You are through to Centro Diagnostico Casalveglia. What can I book
+          for you?
 
   you   : knee
 
@@ -141,7 +151,9 @@ and unusable by the person it was for.
 
 Until it existed, the only way to see this agent work was to install Python and
 type at a prompt — which meant most people who might want to see it never would.
-It is the same agent over the same endpoints, with three things beside it.
+It is the same agent over the same endpoints, with the clinic's side one switch
+away from the conversation. Three things on the two of them are worth looking
+at.
 
 **What is free, for how long.** A diary is only free *for something*: thirty
 minutes free does not mean an exam needing forty-five fits there. So the length
@@ -149,8 +161,8 @@ is a control rather than an assumption, and changing it changes what is offered.
 
 ![The diary, showing what is free for an hour, by room and by day](docs/diary.png)
 
-**What it has booked, and what that cost the diary.** Book something on the left
-and it appears on the right — and the time it took stops being offered.
+**What it has booked, and what that cost the diary.** Book something on the
+caller's side and it appears here — and the time it took stops being offered.
 
 ![A completed booking listed with its reference, patient, exam, time and room](docs/booked.png)
 
@@ -159,6 +171,34 @@ the agent doing the most useful thing available to it, and the reason travels
 with it.
 
 ![The agent putting a caller through to a colleague, with what it had noted so far](docs/handover.png)
+
+### What is reading, said on the screen
+
+The first question this project gets asked is how it works with no model
+connected. The answer is a good one and it is further down: the reader is rules,
+deliberately, because that is what makes the thing runnable. But it lived
+entirely in prose. Somebody who opened the console, typed a sentence and got a
+sensible answer back had no way at all to tell what had understood it — an
+ambiguity that flattered this project and cost it nothing, which is the kind
+worth removing.
+
+So the strip under the header names the reader in use and the file it lives in,
+and opens onto the seam itself: the `Reader` protocol, the methods it requires,
+and the fact that a model-backed reader is a class with that one method, handed
+in at start up. All of it comes from `GET /reading`, which answers from the
+object actually doing the reading and counts the protocol's methods off the
+protocol — "one method wide" is a claim, and a sentence cannot notice a second
+method being added to a class.
+
+![The strip under the header: reading with Rules, from booking_agent/conversation/reading.py, opened out to show that the Reader protocol is one method wide](docs/reading.png)
+
+Hand a different reader to `build()` and the page says so with no line of the
+page changed. [A test](tests/test_looking.py) hands one in and checks both
+halves of that: that the console names it, and that the six sentences which book
+an appointment through the rules book nothing at all through a reader that
+understands none of them. There is no key to type in, no connection to
+configure, and nothing on the page suggesting there should be. The seam is
+shown, not staged.
 
 ### The buttons say what they do, and are checked against it
 
@@ -252,12 +292,13 @@ Three consequences worth naming:
   about what English means. The default reader is rules, not a placeholder for
   a model: a demonstration that needs a key before it does anything is a
   demonstration nobody runs, and logic that can only be exercised through a
-  model is logic that is not tested.
+  model is logic that is not tested. Which reader is in use is on the console
+  as well as in here, read off the object rather than described.
 
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 144 tests
+python -m unittest discover -s tests -t .   # 149 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
 python -m tools.screenshots                 # retakes the pictures above
@@ -296,7 +337,7 @@ Localhost only, with no default that reaches further.
 | `GET /calls/{call}` | where it has got to, without moving it on |
 | `DELETE /calls/{call}` | hang up |
 
-And the clinic, read-only — what the console draws on the right:
+And the clinic, read-only — what the console draws on the clinic's side:
 
 | | |
 |---|---|
@@ -308,12 +349,25 @@ And the clinic, read-only — what the console draws on the right:
 None of them changes anything, and a test tries every other verb on each to
 keep it that way.
 
+And one that is neither a call nor the clinic:
+
+| | |
+|---|---|
+| `GET /reading` | which reader is attached, and how wide the socket it sits in is |
+
+Answered from the reader the service was built with rather than from anything
+written down, which is what makes it worth putting on the console.
+
 Calls are held in memory and let go of after an hour of silence. The booking is
 the thing worth keeping, and the diary already has it.
 
 ## The clinic
 
-`data/clinic.json` describes a clinic that does not exist. It is deliberately
+`data/clinic.json` describes a clinic that does not exist. **Centro Diagnostico
+Casalveglia is invented** — the name, the address, the rooms and every price in
+it. It is named like a real clinic rather than "Example Clinic" for one reason:
+a placeholder name makes everything standing next to it look like a placeholder
+too, and the exams and the diary here are not. It is deliberately
 untidy, because a tidy catalogue demonstrates nothing: an exam that needs both
 a side and a contrast, two that answer to "knee", one the agent may not book,
 one long enough that a free room is not enough for it, one modality with a

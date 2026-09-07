@@ -66,7 +66,7 @@ class Agent:
         reader: Reader,
         clinic_name: str = "the clinic",
         opening_hours: str = "Monday to Friday, 8am to 6pm",
-        address: str = "12 Example Street",
+        address: str = "Via dei Gelsi 14",
     ) -> None:
         self._catalogue = catalogue
         self._diary = diary

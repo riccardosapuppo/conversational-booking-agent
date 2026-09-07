@@ -17,8 +17,48 @@ const $ = (id) => document.getElementById(id);
 /** The call in progress, if there is one. */
 let call = null;
 
-/** What was said, so a redraw does not lose it. */
-const said = [];
+// ──────────────────────────────────────────────── which side of the desk
+
+/** The two views, and the only two things the address will be believed about. */
+const SIDES = ['caller', 'desk'];
+
+/**
+ * Show one side, and write it down where a reload will find it.
+ *
+ * In the address rather than in storage, because it is the sort of thing
+ * somebody sends to a colleague: a link that opens on the side you were looking
+ * at is worth more than one that opens wherever their own browser last was.
+ * A reload keeps it either way, which is the part that was actually asked for.
+ */
+function showSide(wanted) {
+  const chosen = SIDES.includes(wanted) ? wanted : SIDES[0];
+
+  for (const button of document.querySelectorAll('[data-side]')) {
+    const here = button.dataset.side === chosen;
+    button.setAttribute('aria-selected', String(here));
+    $(`side-${button.dataset.side}`).hidden = !here;
+  }
+
+  // `replaceState` rather than assigning the hash: switching sides is not
+  // somewhere to come back to with the back button, and a history entry per
+  // click would bury whatever page somebody arrived from.
+  if (location.hash !== `#${chosen}`) {
+    history.replaceState(null, '', `#${chosen}`);
+  }
+}
+
+for (const button of document.querySelectorAll('[data-side]')) {
+  button.addEventListener('click', () => {
+    showSide(button.dataset.side);
+    // Coming to the caller's side is coming to say something, and the one
+    // thing on it that takes typing is the thing to be typing into.
+    if (button.dataset.side === 'caller') $('text').focus();
+  });
+}
+
+window.addEventListener('hashchange', () => showSide(location.hash.slice(1)));
+
+showSide(location.hash.slice(1));
 
 // ───────────────────────────────────────────────────────────── the shell
 
@@ -35,34 +75,93 @@ async function readClinic() {
   }
 }
 
+/**
+ * What is doing the reading, asked of the service rather than written here.
+ *
+ * The page used to assert "no model, no key" in prose it had no way of being
+ * wrong about, which is the same as asserting nothing. This asks `/reading`,
+ * which answers from the object actually in use — so a model-backed reader
+ * would be named here by a page that knows nothing about models.
+ */
+async function readWhatIsReading() {
+  try {
+    const reading = await (await fetch('/reading')).json();
+    const wide = reading.seam.methods.length;
+
+    $('reader-name').textContent = reading.reader;
+    $('reader-where').textContent = `${reading.module.replaceAll('.', '/')}.py`;
+    $('reader-default').textContent = reading.default
+      ? 'the reader this service builds when nobody hands it another. Rules, so it runs with no key, no account and nothing to sign up for.'
+      : 'handed to the service when it started, in place of the rules.';
+
+    $('seam-protocol').textContent = reading.seam.protocol;
+    $('seam-methods').textContent = reading.seam.methods.map((one) => `${one}()`).join(', ');
+    $('seam-wide').textContent = wide === 1 ? 'one method' : `${wide} methods`;
+  } catch {
+    // Left as an ellipsis this reads as "still loading" for ever, which is the
+    // one thing a strip about honesty should not do.
+    $('reader-name').textContent = 'nothing';
+    $('reader-where').textContent = '—';
+    $('reader-default').textContent = 'the service is not answering, and this page will not guess on its behalf.';
+  }
+}
+
 // ─────────────────────────────────────────────────────── the conversation
 
-function drawSaid() {
-  $('said').innerHTML = said
-    .map(
-      (one) => `<li data-who="${one.who}">
-        <span class="who">${one.who === 'you' ? 'you' : 'agent'}</span>
-        <span class="words">${escaped(one.words)}</span>
-      </li>`
-    )
-    .join('');
+/**
+ * One bubble in the transcript, empty, already on the screen.
+ *
+ * Appended rather than redrawn from a list: the point of the whole exercise is
+ * that a bubble can exist before the words that go in it do, and a function
+ * that rebuilds the transcript from what is known would have nothing to say
+ * about a reply that has not arrived.
+ */
+function bubble(who) {
+  const line = document.createElement('li');
+  line.dataset.who = who;
 
-  const last = $('said').lastElementChild;
-  if (last) last.scrollIntoView({ block: 'nearest' });
+  const label = document.createElement('span');
+  label.className = 'who';
+  label.textContent = who === 'you' ? 'you' : 'the agent';
+
+  const words = document.createElement('div');
+  words.className = 'words';
+
+  line.append(label, words);
+  $('said').append(line);
+  line.scrollIntoView({ block: 'nearest' });
+
+  return words;
 }
 
 /**
- * Escaped, because half of what appears here is text somebody typed.
+ * The reply's bubble, put up before there is a reply to put in it.
  *
- * The agent's replies are built from the catalogue and the diary and are not
- * dangerous; what a visitor types is echoed straight back, and a console that
- * put it into the page as markup would be a small hole in a page anybody can
- * open.
+ * This is the one behaviour worth copying from the chat this project came out
+ * of. Nothing here is faster for it — the agent takes exactly as long as it
+ * took — but somebody who has just pressed a button can see that their message
+ * left and that something is now happening, instead of watching a screen that
+ * did nothing at all and pressing it again.
  */
-function escaped(text) {
-  const box = document.createElement('span');
-  box.textContent = String(text ?? '');
-  return box.innerHTML;
+function waiting() {
+  const words = bubble('agent');
+  words.classList.add('thinking');
+
+  const loader = document.createElement('span');
+  loader.className = 'loader';
+  loader.setAttribute('role', 'status');
+  loader.setAttribute('aria-label', 'working out what to say');
+  loader.append(document.createElement('i'), document.createElement('i'), document.createElement('i'));
+
+  words.append(loader);
+  return words;
+}
+
+/** The words, in place of the loader. Whatever happens, the loader goes. */
+function fill(words, text) {
+  words.classList.remove('thinking');
+  words.textContent = text;
+  words.parentElement.scrollIntoView({ block: 'nearest' });
 }
 
 function showStage(reply) {
@@ -82,57 +181,81 @@ function showStage(reply) {
   }
 }
 
-async function startACall() {
-  const response = await fetch('/calls', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel: $('channel').value }),
-  });
+/**
+ * Start a call, and greet into a bubble that is already waiting.
+ *
+ * `clearing` is false in one place only: a call let go of after an hour, where
+ * the note saying so is the last thing in the transcript and wiping it would
+ * leave somebody looking at a greeting they did not ask for.
+ */
+async function startACall({ clearing = true } = {}) {
+  if (clearing) $('said').replaceChildren();
 
-  const reply = await response.json();
+  const first = waiting();
 
-  call = reply.call;
-  said.length = 0;
-  said.push({ who: 'agent', words: reply.reply });
-  drawSaid();
-  showStage(reply);
+  try {
+    const response = await fetch('/calls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel: $('channel').value }),
+    });
 
-  return reply;
+    const reply = await response.json();
+
+    call = reply.call;
+    fill(first, reply.reply);
+    showStage(reply);
+    return reply;
+  } catch {
+    // A loader that spins for ever is a worse answer than a bad one: it says
+    // "still working" forever about something that has stopped.
+    call = null;
+    fill(first, 'The service did not answer, so there is no call to have.');
+    return null;
+  }
 }
 
 async function say(words) {
   if (!words.trim()) return;
 
+  // Before the bubbles, so a first message does not appear above the greeting
+  // it is answering.
   if (!call) await startACall();
+  if (!call) return;
 
-  said.push({ who: 'you', words });
-  drawSaid();
+  bubble('you').textContent = words;
+  const answer = waiting();
 
-  const response = await fetch(`/calls/${encodeURIComponent(call)}/said`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: words }),
-  });
+  let reply;
 
-  if (response.status === 404) {
-    // An hour of silence and the call is let go of. Starting a new one is the
-    // right answer, and saying nothing at all would leave somebody typing into
-    // a conversation that has stopped existing.
-    said.push({ who: 'agent', words: 'That call has been let go of. Starting a new one.' });
-    call = null;
-    drawSaid();
-    await startACall();
+  try {
+    const response = await fetch(`/calls/${encodeURIComponent(call)}/said`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: words }),
+    });
+
+    if (response.status === 404) {
+      // An hour of silence and the call is let go of. Starting a new one is the
+      // right answer, and saying nothing at all would leave somebody typing
+      // into a conversation that has stopped existing.
+      fill(answer, 'That call has been let go of. Starting a new one.');
+      call = null;
+      await startACall({ clearing: false });
+      return;
+    }
+
+    reply = await response.json();
+    fill(answer, reply.reply);
+  } catch {
+    fill(answer, 'The service did not answer. Nothing was said to the agent.');
     return;
   }
 
-  const reply = await response.json();
-
-  said.push({ who: 'agent', words: reply.reply });
-  drawSaid();
   showStage(reply);
 
-  // Anything the agent does to the clinic shows up on the right, immediately:
-  // a slot held during a call stops being offered, and a booking appears.
+  // Anything the agent does to the clinic shows up on the other side straight
+  // away: a slot held during a call stops being offered, and a booking appears.
   await Promise.all([showDiary(), showBookings()]);
 }
 
@@ -176,6 +299,21 @@ $('channel').addEventListener('change', async () => {
 });
 
 // ────────────────────────────────────────────────────────────── the clinic
+
+/**
+ * Escaped, because half of what appears here is text somebody typed.
+ *
+ * The agent's replies are built from the catalogue and the diary and are not
+ * dangerous; what a visitor types is echoed straight back, and a console that
+ * put it into the page as markup would be a small hole in a page anybody can
+ * open. The transcript builds its bubbles out of nodes and needs none of this;
+ * the lists below are strings, and do.
+ */
+function escaped(text) {
+  const box = document.createElement('span');
+  box.textContent = String(text ?? '');
+  return box.innerHTML;
+}
 
 for (const tab of document.querySelectorAll('[data-tab]')) {
   tab.addEventListener('click', () => {
@@ -284,13 +422,15 @@ async function showBookings() {
           </li>`
         )
         .join('')
-    : `<li class="nothing">Nothing booked yet. Book something on the left.</li>`;
+    : `<li class="nothing">Nothing booked yet. Book something on the caller's side.</li>`;
 }
 
 // ──────────────────────────────────────────────────────────────── on arrival
 
-await readClinic();
+await Promise.all([readClinic(), readWhatIsReading()]);
 await Promise.all([showCatalogue(), showDiary(), showBookings()]);
 await startACall();
 
-$('text').focus();
+// Only if it is on the screen: focusing something inside a hidden panel puts
+// the caret nowhere and scrolls nothing, which looks exactly like a bug.
+if (!$('side-caller').hidden) $('text').focus();

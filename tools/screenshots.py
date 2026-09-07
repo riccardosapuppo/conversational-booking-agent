@@ -69,21 +69,28 @@ def main() -> int:
                     device_scale_factor=2,
                     reduced_motion="reduce",
                 )
-                page.goto(f"{WHERE}/", wait_until="networkidle")
+                page.goto(f"{WHERE}/#caller", wait_until="networkidle")
                 page.wait_for_timeout(1200)
 
-                # 1. The ambiguity, which is why it asks rather than guesses —
-                #    with the two exams that answer to the one word visible on
-                #    the right at the same moment.
+                # 1. The caller's side, and the ambiguity that is the reason
+                #    the agent asks rather than guesses. Nothing of the clinic
+                #    is on this screen, because a caller has none of it.
                 page.click('[data-say="knee"]')
                 page.wait_for_timeout(1500)
-                page.fill("#find", "knee")
-                page.click("#find-form button")
-                page.wait_for_timeout(600)
                 page.screenshot(path=str(DOCS / "console.png"), full_page=True)
                 say("console.png")
 
-                # 2. A whole booking, and the diary changing because of it.
+                # 2. What is reading, with the seam opened out. The strip is
+                #    filled from /reading, so this picture is of the reader the
+                #    service actually built rather than of a sentence.
+                page.click(".seam summary")
+                page.wait_for_timeout(400)
+                page.locator(".reading").screenshot(path=str(DOCS / "reading.png"))
+                say("reading.png")
+                page.click(".seam summary")
+
+                # 3. A whole booking, and then crossing to the other side to
+                #    see what it cost the diary.
                 page.click("#again")
                 page.wait_for_timeout(800)
 
@@ -98,20 +105,11 @@ def main() -> int:
                     page.click("#send")
                     page.wait_for_timeout(900)
 
+                page.click('[data-side="desk"]')
                 page.click('[data-tab="bookings"]')
                 page.wait_for_timeout(500)
                 page.screenshot(path=str(DOCS / "booked.png"), full_page=True)
                 say("booked.png")
-
-                # 3. Stopping, and fetching a person. Drawn as the right
-                #    outcome rather than as a failure, which is what it is.
-                page.click("#again")
-                page.wait_for_timeout(800)
-                page.fill("#text", "put me through to someone")
-                page.click("#send")
-                page.wait_for_timeout(1200)
-                page.locator(".talk").screenshot(path=str(DOCS / "handover.png"))
-                say("handover.png")
 
                 # 4. The diary, which is where "free" turns out to mean "free
                 #    for something".
@@ -120,6 +118,17 @@ def main() -> int:
                 page.wait_for_timeout(800)
                 page.locator(".clinic").screenshot(path=str(DOCS / "diary.png"))
                 say("diary.png")
+
+                # 5. Stopping, and fetching a person. Drawn as the right
+                #    outcome rather than as a failure, which is what it is.
+                page.click('[data-side="caller"]')
+                page.click("#again")
+                page.wait_for_timeout(800)
+                page.fill("#text", "put me through to someone")
+                page.click("#send")
+                page.wait_for_timeout(1200)
+                page.locator(".talk").screenshot(path=str(DOCS / "handover.png"))
+                say("handover.png")
 
                 page.close()
             finally:
