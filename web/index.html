@@ -91,7 +91,7 @@
             aria-selected="true"
           >
             <span class="side-name">The caller&rsquo;s side</span>
-            <span class="side-what">what somebody ringing up sees &mdash; the conversation, and nothing else</span>
+            <span class="side-what">what somebody ringing up sees: the conversation, and nothing else</span>
           </button>
 
           <button
@@ -104,7 +104,7 @@
             aria-selected="false"
           >
             <span class="side-name">The clinic&rsquo;s side</span>
-            <span class="side-what">what the people answering see &mdash; the catalogue, the diary, what has been booked</span>
+            <span class="side-what">what the people answering see: the catalogue, the diary, what has been booked</span>
           </button>
         </nav>
       </div>
@@ -130,7 +130,7 @@
             <span class="dot" aria-hidden="true"></span>
             <span>
               Reading with <strong id="reader-name">…</strong>, from
-              <code class="mono" id="reader-where">…</code> &mdash;
+              <code class="mono" id="reader-where">…</code>:
               <span id="reader-default">asking the service what it is using…</span>
             </span>
           </p>
@@ -155,9 +155,9 @@
               </p>
               <p class="plain">
                 Nothing is connected to a model here, and this page will never ask
-                you for a key &mdash; a demonstration that wants an account before
-                it does anything is a demonstration nobody runs. This clinic does
-                not exist and nothing here is kept between two runs.
+                you for a key, because a demonstration that wants an account
+                before it does anything is a demonstration nobody runs. This
+                clinic does not exist and nothing here is kept between two runs.
               </p>
             </div>
           </details>
@@ -254,7 +254,7 @@
           against the thing that behaves.
         -->
         <div class="aside">
-          <p class="hint">Not part of the call &mdash; sentences to try, and where the conversation has got to.</p>
+          <p class="hint">Not part of the call: sentences to try, and where the conversation has got to.</p>
 
           <ul class="try" id="try">
             <li><button type="button" data-say="knee" data-expect="asks-back">something ambiguous</button></li>
@@ -305,7 +305,7 @@
           <p class="hint">
             This is <strong>the agent&rsquo;s own search</strong>, not a filter
             written for this screen. Type <code>knee</code> and you get the two
-            exams that answer to it &mdash; which is the reason it asks
+            exams that answer to it, which is the reason it asks
             &ldquo;did you mean&rdquo;.
           </p>
 
@@ -330,8 +330,8 @@
           <p class="hint">
             A diary is only free <em>for something</em>. Thirty minutes free does
             not mean an exam needing forty-five fits there, so the length is a
-            control rather than an assumption &mdash; and a slot held during a
-            call disappears from here while the call is open.
+            control rather than an assumption, and a slot held during a call
+            disappears from here while the call is open.
           </p>
 
           <div class="days" id="days"></div>
@@ -341,8 +341,8 @@
         <div class="tab" id="tab-bookings" hidden>
           <p class="hint">
             What the agent has booked, this run. Book something on the
-            caller&rsquo;s side and it appears here &mdash; and the time it took
-            stops being offered in the diary.
+            caller&rsquo;s side and it appears here; the time it took stops
+            being offered in the diary.
           </p>
           <ul class="bookings" id="bookings"></ul>
         </div>
@@ -351,15 +351,19 @@
 
     <footer class="middle">
       <p>
-        A demonstration &mdash; an independent reconstruction of a production system
-        I designed and developed. The clinic named at the top is invented, and so is
-        every exam, room and price in
-        <code id="clinic-file">data/clinic.json</code>, which is deliberately
-        untidy &mdash; two exams answer to &ldquo;knee&rdquo;, one needs a side
-        and a contrast, one may not be booked by an agent at all, and one
-        modality has a single room.
+        A demonstration. It reconstructs a production system I designed and
+        developed; the original cannot be published, so this one was written
+        from scratch. The clinic named at the top is invented, and so is every
+        exam, room and price in
+        <code id="clinic-file">data/clinic.json</code>, deliberately untidy:
+        two exams answer to &ldquo;knee&rdquo;, one needs a side and a
+        contrast, one may not be booked by an agent, and one modality has a
+        single room.
       </p>
-      <p class="by">Developed by <strong>Riccardo Sapuppo</strong></p>
+      <p class="by">
+        Developed by
+        <strong><a href="https://github.com/riccardosapuppo" target="_blank" rel="noopener noreferrer">Riccardo Sapuppo</a></strong>
+      </p>
     </footer>
 
     <script src="./console.js" type="module"></script>

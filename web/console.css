@@ -743,6 +743,28 @@ footer code { font-family: var(--mono); font-size: 0.86em; }
 footer .by { margin-top: 0.6rem; color: var(--ink-soft); }
 footer .by strong { color: var(--ink); font-weight: 600; }
 
+/* The one link on the page, and it is a signature rather than a control. Down
+ * here the text is 0.82rem and quiet, so colour on its own would not say
+ * "link": the underline does, and it is there before the pointer is. The name
+ * keeps the ink the footer already gave it — a signature that arrives greener
+ * than the sentence above it is an advert — and hover brings the page's green,
+ * the only other colour this page owns. The focus ring is the one every
+ * control here already wears. */
+footer .by a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+footer .by a:hover { color: var(--accent-ink); }
+
+footer .by a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* ------------------------------------------------------------------ moving */
 
 /* None of this is decoration and none of it delays anything: a bubble that
@@ -759,6 +781,8 @@ footer .by strong { color: var(--ink); font-weight: 600; }
   .panel:not([hidden]) { animation: turns 0.26s ease-out both; }
   .ended:not([hidden]), .handover:not([hidden]) { animation: arrives 0.32s ease-out both; }
   .reading .dot::after { animation: alive 2.8s ease-out infinite; }
+
+  footer .by a { transition: color 0.15s ease; }
 }
 
 @keyframes waiting {
