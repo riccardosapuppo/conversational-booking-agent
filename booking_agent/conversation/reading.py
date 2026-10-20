@@ -448,6 +448,13 @@ class Rules:
                 return Reading(intent="book", side=side, contrast=wanted)
 
         if expecting == "contrast":
+            # The question's own words said back: "with or without contrast?",
+            # "without". Not understood, it was asked again, and the third time
+            # the call went to a person.
+            rest = set(_tokens(lowered)) - _POLITE
+            if rest in ({"with"}, {"without"}):
+                return Reading(intent="book", contrast=rest == {"with"})
+
             # "Yes" and "no" are answers to "with or without contrast?" too,
             # and only when that is the question: read here so that "no" is the
             # answer rather than turning something down.
@@ -500,6 +507,13 @@ class Rules:
 
         if not exam_text:
             answer = _yes_or_no(lowered)
+            if answer == "agree" and expecting == "confirm":
+                # A yes to a time read back, with whatever side or contrast was
+                # said along with it. Dropped, "yes, but without contrast" was
+                # a yes to the scan with contrast just read back, and it was
+                # booked. Whether they match what was read back is the graph's
+                # to say: this file does not know what that was.
+                return Reading(intent="agree", side=side_in(text), contrast=contrast_in(text))
             if answer is not None:
                 return Reading(intent=answer)
 

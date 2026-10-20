@@ -136,7 +136,9 @@ it is what a switchboard is handed to speak. Both are further down.
 ## What it is careful about
 
 **It does not guess.** Two exams answer to "knee", so it asks which. An
-exam that has a left and a right is not booked without one. Not understanding
+exam that has a left and a right is not booked without one, and a yes that
+names a different knee or contrast from the one just read back books nothing:
+what it contradicted is asked again. Not understanding
 is an answer, and it is the answer that ends with a person on the line, because
 an agent that guesses produces a confident booking for the wrong thing and the
 caller finds out on the day.
@@ -653,7 +655,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 334 tests
+python -m unittest discover -s tests -t .   # 345 tests
 python -m tools.evals                       # the hundred golden calls, below
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
@@ -676,7 +678,7 @@ readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 318 of the 334**, and it will be green
+which is worth saying out loud: **CI runs 329 of the 345**, and it will be green
 on the day the console breaks that way again. All three of those figures are
 counted back out of the suite by [a test](tests/test_diagram.py), because a
 sentence admitting what is not checked is the last one that should be allowed
@@ -779,15 +781,22 @@ for the first, and for the twenty-four, the rules of `ac7e8d5` with the cases
 of `ac231ba` (`git checkout ac7e8d5`, then `git checkout ac231ba --
 evals/golden.json`).
 
-**After the hundred passed**, a review of the reader found three things none of
+**After the hundred passed**, two reviews of the code found five things none of
 them tried. "Of course not", said to "shall I book that?", booked it, because
-"of course" was read first and on its own. "Mario R. Rossi", given as the name,
-was read as the right knee and no name: said again, the name was asked for
-again, and said without the R, the right knee was booked for somebody who had
-said left. And the diary turned away real names made of words a sentence uses,
-"Said Ahmed" and "Can Yilmaz" among them. Each is a test now rather than a call:
-a call written once its answer is known measures nothing, and the hundred are a
-measurement.
+"of course" was read first and on its own. "Yes, but without contrast", said to
+a scan with contrast read back, booked it with contrast, and "yes, the right
+one" booked the left knee: a yes was a yes, whatever came with it. "Mario R.
+Rossi", given as the name, was read as the right knee and no name: said again,
+the name was asked for again, and said without the R, the right knee was booked
+for somebody who had said left. "The left knee with no contrast and the right
+knee with no contrast" was the right knee alone, the no of "no contrast" read
+as taking the left one back. And the diary turned away real names made of
+words a sentence uses, "Said Ahmed" and "Can Yilmaz" among them. Correcting
+them found two more: "the left rather than the right" was the right knee, and
+"without", said to "with or without contrast?", was not understood, and the
+third time it was said the call went to a person. Each is a test now rather
+than a call: a call written once its answer is known measures nothing, and the
+hundred are a measurement.
 
 What a hundred scripted calls cannot do is adapt. A caller here says the next
 line whatever the agent asked, so a call that goes off the path fails rather

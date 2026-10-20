@@ -48,6 +48,12 @@ _NOT_A_SIDE_BEFORE = {"all", "that", "thats", "s"}
 #: the left one; the side said first is the one being corrected.
 _CORRECTIONS = {"no", "wait", "sorry", "actually", "mean", "meant", "rather", "instead"}
 
+#: What says no to the side right after it: "not the left", and as much
+#: "rather than the right" and "instead of the left", where "rather" and
+#: "instead" take nothing back. Read as corrections, "the left rather than the
+#: right" was the right one.
+_NOT_THIS = (("not",), ("rather", "than"), ("instead", "of"))
+
 #: The words that name contrast at all.
 _CONTRAST = {"contrast", "enhanced", "gadolinium"}
 
@@ -366,11 +372,10 @@ def side_in(text: str) -> Side | None:
         if word == "right" and (after in _NOT_A_SIDE_AFTER or before in _NOT_A_SIDE_BEFORE):
             continue
 
-        # "Not the left", "not left", "not my left": the side said no to. The
-        # other one, for a body part that comes in two; nothing, for both.
-        # Only right in front of the side: "not sure, left" is the left.
-        two_before = words[position - 2] if position > 1 else ""
-        if before == "not" or (two_before == "not" and before in ("the", "my")):
+        # "Not the left", "not left", "rather than my left": the side said no
+        # to. The other one, for a body part that comes in two; nothing, for
+        # both. Only right in front of the side: "not sure, left" is the left.
+        if _said_no_to(words, position):
             other = _OTHER.get(side)
             if other is None:
                 return None
@@ -385,12 +390,41 @@ def side_in(text: str) -> Side | None:
         return named[0][1]
 
     first, last = named[0][0], named[-1][0]
-    between = set(words[first + 1 : last])
-    if between & _CORRECTIONS:
+    if _taken_back(words, first, last):
         return named[-1][1]
-    if sides == {"left", "right"} and "and" in between:
+    if sides == {"left", "right"} and "and" in words[first + 1 : last]:
         return "both"
     return None
+
+
+def _said_no_to(words: list[str], position: int) -> bool:
+    """Whether the word at this position is said no to, by what comes before it."""
+    before = words[:position]
+    if before and before[-1] in ("the", "my"):
+        before = before[:-1]
+    return any(tuple(before[-len(phrase) :]) == phrase for phrase in _NOT_THIS)
+
+
+def _taken_back(words: list[str], first: int, last: int) -> bool:
+    """Whether something between two answers takes the first one back.
+
+    Only the words that do. The no of "no contrast" refuses the contrast, and
+    the rather of "rather than" says which one is not meant: read as taking
+    the first side back, "the left knee with no contrast and the right knee
+    with no contrast" was the right knee alone, and the left one was dropped
+    without a word.
+    """
+    for position in range(first + 1, last):
+        word = words[position]
+        after = words[position + 1] if position + 1 < len(words) else ""
+        if word not in _CORRECTIONS:
+            continue
+        if word == "no" and after in _CONTRAST:
+            continue
+        if (word, after) in (("rather", "than"), ("instead", "of")):
+            continue
+        return True
+    return False
 
 
 def contrast_in(text: str) -> bool | None:
@@ -408,17 +442,21 @@ def contrast_in(text: str) -> bool | None:
     was read as with. So is "contrast-free", where the refusal comes after.
 
     Not knowing is not an answer either way. "Not sure about the contrast" is
-    none, and so is a message that corrects itself into two answers: the last
-    one said is the one meant.
+    none. A message that corrects itself into two answers means the last one
+    said; two different answers with nothing between them that takes the
+    first back are a question, as two sides are. "The left knee with
+    no contrast and the right knee with contrast" cannot be booked as one
+    request, and taking the last answer gave contrast to the knee it had just
+    been refused for.
     """
     words = _words(text)
     if unsure(text):
         return None
 
-    said: list[bool] = []
+    said: list[tuple[int, bool]] = []
     for position, word in enumerate(words):
         if word in _PLAIN:
-            said.append(False)
+            said.append((position, False))
             continue
         if word not in _CONTRAST:
             continue
@@ -428,15 +466,17 @@ def contrast_in(text: str) -> bool | None:
         after = words[position + 1] if position + 1 < len(words) else ""
 
         if before in _REFUSALS or after in _REFUSED_AFTER:
-            said.append(False)
+            said.append((position, False))
         elif before == "o" and two_before == "w":
-            said.append(False)
+            said.append((position, False))
         else:
-            said.append(True)
+            said.append((position, True))
 
     if not said:
         return None
-    return said[-1]
+    if len({answer for _, answer in said}) == 1 or _taken_back(words, said[0][0], said[-1][0]):
+        return said[-1][1]
+    return None
 
 
 def load(rows: Sequence[dict]) -> Catalogue:

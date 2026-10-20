@@ -216,6 +216,55 @@ class TheWordsThatTurnADetailRound(unittest.TestCase):
                 self.assertFalse(unsure(said))
 
 
+class WhatAWordTakesBack(unittest.TestCase):
+    """A word that takes something back takes back what it is next to.
+
+    Any "no" between two sides was read as taking the first one back, so the no
+    of "no contrast" dropped a knee: found by a review once the golden calls
+    passed, not by any call. Correcting it found "rather" and "instead" taking
+    back the side they were saying was the one meant.
+    """
+
+    def test_the_no_of_no_contrast_takes_no_side_back(self) -> None:
+        # The right knee alone, and the left one dropped without a word.
+        said = "MRI of the left knee with no contrast and the right knee with no contrast"
+
+        self.assertEqual(side_in(said), "both")
+        self.assertIs(contrast_in(said), False)
+
+        request = catalogue().resolve(said)
+        assert request is not None
+        self.assertEqual((request.exam.code, request.side, request.contrast), ("MRI-KNEE", "both", False))
+
+    def test_rather_than_and_instead_of_say_no_to_the_side_after_them(self) -> None:
+        for said, side in (
+            ("the left rather than the right", "left"),
+            ("the right knee rather than the left", "right"),
+            ("the left instead of the right", "left"),
+        ):
+            with self.subTest(said=said):
+                self.assertEqual(side_in(said), side)
+
+    def test_but_a_correction_is_still_a_correction(self) -> None:
+        for said, side in (
+            ("left, or rather the right", "right"),
+            ("left, no, right", "right"),
+            ("the left with no contrast, no wait, the right", "right"),
+        ):
+            with self.subTest(said=said):
+                self.assertEqual(side_in(said), side)
+
+    def test_two_contrasts_with_nothing_taking_either_back_is_a_question(self) -> None:
+        # Two knees, one with contrast and one without, cannot be one request.
+        # The last answer used to be taken, which only went unnoticed while
+        # the side was wrong as well: read as both, the left knee would have
+        # had the contrast it had just been refused for.
+        said = "the left knee with no contrast and the right knee with contrast"
+
+        self.assertIsNone(contrast_in(said))
+        self.assertIsNone(contrast_in("with contrast and without contrast"))
+
+
 class WordsThatNameNothingInParticular(unittest.TestCase):
     def test_a_scan_is_not_an_exam_until_it_is_a_scan_of_something(self) -> None:
         # Every exam here is a scan of something. "The doctor said a scan"

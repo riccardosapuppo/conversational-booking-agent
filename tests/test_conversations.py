@@ -335,6 +335,69 @@ class WhatTheGoldenCallsDidNotTry(unittest.TestCase):
         self.assertIsNone(talk.patient)
 
 
+class AYesIsAYesToWhatWasReadBack(unittest.TestCase):
+    """Found by a second review, once the golden calls passed.
+
+    "Yes, but without contrast", said to a scan with contrast read back, booked
+    it with contrast, and "yes, the right one" booked the left knee.
+    """
+
+    def confirming(self, first: str, book: Diary):
+        one = agent(book)
+        talk = new("y")
+        for line in (first, "Anna Bianchi", "1"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        self.assertEqual(talk.stage, "confirming")
+        return one, talk
+
+    def test_one_that_says_otherwise_books_nothing_and_asks_again(self) -> None:
+        for said, asked in (
+            ("yes, but without contrast", "with or without contrast?"),
+            ("yes, the right one", "left or right?"),
+        ):
+            with self.subTest(said=said):
+                book = diary()
+                one, talk = self.confirming("mri knee left with contrast", book)
+
+                reply = one.reply_to(talk, said, now=FRIDAY_BEFORE)
+
+                self.assertEqual(book.bookings(), [])
+                self.assertIn(asked, reply)
+                # And the time it was keeping goes back until it is clear what for.
+                self.assertIsNone(talk.hold)
+                self.assertEqual(book.taken(FRIDAY_BEFORE), [])
+
+    def test_and_what_is_booked_is_the_answer_to_that(self) -> None:
+        book = diary()
+        one, talk = self.confirming("mri knee left with contrast", book)
+
+        for line in ("yes, but without contrast", "without", "1", "yes"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+
+        self.assertEqual([(request.side, request.contrast) for request in book.bookings()[0].requests], [("left", False)])
+
+    def test_right_yes_please_is_never_taken_for_the_right_knee(self) -> None:
+        # Taken as a correction, it would have been read back as the right knee
+        # and booked on the next yes. Asked, it is the knee the caller says.
+        book = diary()
+        one, talk = self.confirming("mri knee left no contrast", book)
+
+        for line in ("right, yes please", "left", "1", "yes"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+
+        self.assertEqual([(request.side, request.contrast) for request in book.bookings()[0].requests], [("left", False)])
+
+    def test_but_a_yes_that_names_what_was_read_back_books_it(self) -> None:
+        for said in ("yes, the left one", "yes please, without contrast"):
+            with self.subTest(said=said):
+                book = diary()
+                one, talk = self.confirming("mri knee left no contrast", book)
+
+                one.reply_to(talk, said, now=FRIDAY_BEFORE)
+
+                self.assertEqual(talk.stage, "booked")
+
+
 class WhatIsLeftWhenItCannotGoOn(unittest.TestCase):
     """The question asked again, the times given back, and a limit to how many."""
 

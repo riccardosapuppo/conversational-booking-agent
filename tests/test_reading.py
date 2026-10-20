@@ -245,6 +245,32 @@ class TakingSomethingBack(unittest.TestCase):
     def test_but_a_yes_that_names_the_side_is_still_a_yes(self) -> None:
         self.assertEqual(reader().read("yes, the left one", expecting="confirm").intent, "agree")
 
+    def test_and_keeps_what_it_named_for_the_graph_to_check(self) -> None:
+        # Dropped, "yes, but without contrast" was a yes to the scan with
+        # contrast just read back. What was read back is the graph's to know.
+        for said, side, contrast in (
+            ("yes, but without contrast", None, False),
+            ("yes, the right one", "right", None),
+            ("yes", None, None),
+        ):
+            with self.subTest(said=said):
+                reading = reader().read(said, expecting="confirm")
+                self.assertEqual(reading.intent, "agree")
+                self.assertEqual((reading.side, reading.contrast), (side, contrast))
+
+
+class TheQuestionsOwnWords(unittest.TestCase):
+    def test_with_or_without_is_answered_with_or_without(self) -> None:
+        # Not understood: asked again, and the third time handed to a person.
+        for said, contrast in (("without", False), ("with, please", True), ("without, thanks", False)):
+            with self.subTest(said=said):
+                reading = reader().read(said, expecting="contrast")
+                self.assertEqual(reading.intent, "book")
+                self.assertIs(reading.contrast, contrast)
+
+    def test_and_only_when_that_is_the_question(self) -> None:
+        self.assertIsNone(reader().read("without", expecting="side").contrast)
+
 
 class GivingAName(unittest.TestCase):
     def test_only_when_a_name_was_asked_for(self) -> None:

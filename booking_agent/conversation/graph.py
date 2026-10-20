@@ -276,6 +276,20 @@ class Agent:
         conversation = state["conversation"]
         reading = state["reading"]
 
+        if reading.intent == "agree" and conversation.stage == "confirming":
+            # Here only when the yes named a side or a contrast other than the
+            # one just read back. Not taken as a correction either: "right, yes
+            # please" is agreeing, and taken as the right knee it would have
+            # been read back as one and booked on the next yes. So what the yes
+            # contradicted is forgotten and asked for again, and the time goes
+            # back until it is clear what it is for.
+            self._unsettle(conversation, reading)
+            question = self._question(conversation)
+            return {
+                **state,
+                "reply": "Just to be sure before I book anything: " + question[0].lower() + question[1:],
+            }
+
         if reading.intent == "unclear":
             # The question that was on the table, asked again, and nothing put
             # away. It used to be "what are you looking to book?" whatever had
@@ -553,6 +567,36 @@ class Agent:
         conversation.said_contrast = None
         return made
 
+    @staticmethod
+    def _contradicts(conversation: Conversation, reading: Reading) -> bool:
+        """Whether a yes names a side or a contrast other than the one read back.
+
+        Against the request as the diary would take it, so a side said for a
+        chest x-ray, which has none, contradicts nothing.
+        """
+        if not conversation.requests:
+            return False
+        held = conversation.requests[0]
+        said = Request(exam=held.exam, side=reading.side, contrast=reading.contrast)
+        return said.side not in (None, held.side) or said.contrast not in (None, held.contrast)
+
+    def _unsettle(self, conversation: Conversation, reading: Reading) -> None:
+        """Forgets what a yes contradicted, and gives back the time held for it."""
+        held = conversation.requests[0]
+        said = Request(exam=held.exam, side=reading.side, contrast=reading.contrast)
+        conversation.requests[0] = Request(
+            exam=held.exam,
+            side=None if said.side not in (None, held.side) else held.side,
+            contrast=None if said.contrast not in (None, held.contrast) else held.contrast,
+        )
+
+        if conversation.hold:
+            self._diary.release(conversation.hold)
+            conversation.hold = None
+        conversation.chosen = None
+        conversation.offered = []
+        conversation.stage = "gathering"
+
     def _absorb(self, conversation: Conversation, reading: Reading) -> None:
         """Puts what was understood into what is known.
 
@@ -652,7 +696,10 @@ class Agent:
 
         if reading.intent == "agree":
             if conversation.stage == "confirming":
-                return "book"
+                # A yes to what was read back, unless it names something else:
+                # "yes, but without contrast", said to a scan with it, booked
+                # the scan with it. Then it is asked again, in clarify.
+                return "clarify" if self._contradicts(conversation, reading) else "book"
             if conversation.ready_to_offer and conversation.patient:
                 return "offer"
             return "clarify"
