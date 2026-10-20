@@ -129,6 +129,10 @@ class LookingAtTheClinic(unittest.TestCase):
         self.assertEqual(len(booked), 1)
         self.assertEqual(booked[0]["reference"], done["booking"]["reference"])
 
+        # What the people at the desk read is what the caller was told, side
+        # and contrast included, and not the code of a knee exam.
+        self.assertEqual(booked[0]["what"], ["MRI knee left without contrast"])
+
         after = self.client.get("/diary", params={"days": 3, "minutes": 30}).json()
         free_after = {
             (room["room"], at) for day in after["days"] for room in day["rooms"] for at in room["free"]

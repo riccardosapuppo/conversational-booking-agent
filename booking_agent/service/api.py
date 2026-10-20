@@ -70,6 +70,9 @@ class Booked(BaseModel):
     reference: str
     patient: str
     exams: list[str]
+    #: What each of those is, side and contrast included, as it was read back
+    #: to the caller and as the diary now holds it.
+    what: list[str]
     starts: datetime
 
 
@@ -132,6 +135,7 @@ def build(
                     reference=booking.reference,
                     patient=booking.patient,
                     exams=list(booking.exam_codes),
+                    what=[request.description for request in booking.requests],
                     starts=booking.slots[0].starts,
                 )
                 if booking is not None

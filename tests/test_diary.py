@@ -11,6 +11,7 @@ from __future__ import annotations
 import unittest
 from datetime import date, datetime, time, timedelta
 
+from booking_agent.clinic.catalogue import Exam, Request
 from booking_agent.clinic.diary import (
     Diary,
     HoldExpired,
@@ -24,6 +25,22 @@ from booking_agent.clinic.diary import (
 MONDAY = date(2026, 9, 7)
 NINE = datetime(2026, 9, 7, 9, 0)
 EIGHT_THE_DAY_BEFORE = datetime(2026, 9, 6, 8, 0)
+
+#: What the bookings here are for. The diary does not decide it, but it is the
+#: one place that has to remember it.
+LEFT_KNEE_PLAIN = Request(
+    exam=Exam(
+        code="MRI-KNEE",
+        name="MRI knee",
+        modality="MR",
+        minutes=30,
+        price=180.0,
+        needs_side=True,
+        needs_contrast=True,
+    ),
+    side="left",
+    contrast=False,
+)
 
 
 def diary() -> Diary:
@@ -150,13 +167,43 @@ class Confirming(unittest.TestCase):
 
         booking = one.confirm(
             held.reference,
-            exam_codes=["MRI-KNEE"],
+            requests=[LEFT_KNEE_PLAIN],
             patient="A Patient",
             now=EIGHT_THE_DAY_BEFORE,
         )
 
         self.assertEqual(booking.slots, (first,))
         self.assertEqual(one.booking(booking.reference), booking)
+
+    def test_and_the_booking_says_which_side_and_whether_contrast(self) -> None:
+        # It used to keep the code of the exam and nothing else. The caller was
+        # told "MRI knee left without contrast", and the diary the people at
+        # the desk open on the day said MRI-KNEE.
+        one = diary()
+        first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
+        held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
+
+        booking = one.confirm(
+            held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+        )
+        kept = one.booking(booking.reference)
+
+        assert kept is not None
+        self.assertEqual([request.side for request in kept.requests], ["left"])
+        self.assertEqual([request.contrast for request in kept.requests], [False])
+        self.assertEqual(kept.requests[0].description, "MRI knee left without contrast")
+        self.assertEqual(kept.exam_codes, ("MRI-KNEE",))
+
+    def test_a_booking_for_nothing_is_not_a_booking(self) -> None:
+        one = diary()
+        first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
+        held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
+
+        with self.assertRaises(ValueError):
+            one.confirm(held.reference, requests=[], patient="A Patient", now=EIGHT_THE_DAY_BEFORE)
+
+        # And the hold is still there to be confirmed properly.
+        self.assertIn(first, one.taken(EIGHT_THE_DAY_BEFORE))
 
     def test_a_hold_that_ran_out_cannot_be_confirmed(self) -> None:
         # It would take a slot that has been offered to somebody else since,
@@ -168,7 +215,7 @@ class Confirming(unittest.TestCase):
         with self.assertRaises(HoldExpired):
             one.confirm(
                 held.reference,
-                exam_codes=["MRI-KNEE"],
+                requests=[LEFT_KNEE_PLAIN],
                 patient="A Patient",
                 now=EIGHT_THE_DAY_BEFORE + timedelta(hours=1),
             )
@@ -181,14 +228,14 @@ class Confirming(unittest.TestCase):
 
         with self.assertRaises(HoldExpired):
             one.confirm(
-                held.reference, exam_codes=["X"], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+                held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
             )
 
     def test_a_booked_slot_is_gone_for_good(self) -> None:
         one = diary()
         first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
-        one.confirm(held.reference, exam_codes=["X"], patient="A Patient", now=EIGHT_THE_DAY_BEFORE)
+        one.confirm(held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE)
 
         much_later = EIGHT_THE_DAY_BEFORE + timedelta(hours=2)
         still = [s.starts for s in one.free(modality="MR", minutes=30, day=MONDAY, now=much_later)]
@@ -199,7 +246,7 @@ class Confirming(unittest.TestCase):
         first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
         booking = one.confirm(
-            held.reference, exam_codes=["X"], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+            held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
         )
 
         self.assertTrue(one.cancel(booking.reference))

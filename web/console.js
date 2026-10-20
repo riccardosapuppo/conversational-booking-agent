@@ -690,7 +690,7 @@ async function showBookings() {
           (one) => `<li>
             <span class="reference mono">${escaped(one.reference)}</span>
             <span class="patient">${escaped(one.patient)}</span>
-            <span class="what">${escaped(one.exams.join(', '))}</span>
+            <span class="what">${escaped(one.what.join(', '))}</span>
             <span class="when mono">${escaped(one.starts.replace('T', ' '))}</span>
             <span class="room mono">${escaped(one.room)}</span>
           </li>`

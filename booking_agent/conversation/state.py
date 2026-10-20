@@ -164,23 +164,10 @@ class Conversation:
         if not self.requests:
             wanted = "nothing yet"
         else:
-            wanted = ", ".join(
-                _describe(request) for request in self.requests
-            )
+            wanted = ", ".join(request.description for request in self.requests)
 
         who = self.patient or "name not given"
         return f"{who}: {wanted}"
-
-
-def _describe(request: Request) -> str:
-    parts = [request.exam.name]
-    if request.side:
-        parts.append(request.side)
-    if request.contrast is True:
-        parts.append("with contrast")
-    elif request.contrast is False:
-        parts.append("without contrast")
-    return " ".join(parts)
 
 
 def offered_slot(conversation: Conversation, which: int) -> Slot | None:

@@ -344,7 +344,7 @@ class Agent:
         try:
             booking = self._diary.confirm(
                 conversation.hold,
-                exam_codes=[request.exam.code for request in conversation.requests],
+                requests=conversation.requests,
                 patient=conversation.patient or "not given",
                 now=self._now,
             )

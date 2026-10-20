@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Container, Iterable, Iterator, Sequence
 
+from booking_agent.clinic.catalogue import Request
+
 #: How long a slot is kept while somebody makes up their mind.
 HOLD_MINUTES = 10
 
@@ -111,13 +113,24 @@ class Hold:
 
 @dataclass
 class Booking:
-    """A slot somebody actually has."""
+    """A slot somebody actually has, and what it is for.
+
+    What it is for is the request, side and contrast included, and not the
+    code of an exam. It used to be the code: the caller was told "MRI knee left
+    without contrast", the diary wrote down MRI-KNEE, and whoever opened the
+    diary on the day had no way to know which knee. The one detail a booking
+    agent exists to get right was the one detail it threw away.
+    """
 
     reference: str
     slots: tuple[Slot, ...]
-    exam_codes: tuple[str, ...]
+    requests: tuple[Request, ...]
     patient: str
     made_at: datetime
+
+    @property
+    def exam_codes(self) -> tuple[str, ...]:
+        return tuple(request.exam.code for request in self.requests)
 
 
 class SlotGone(Exception):
@@ -243,7 +256,7 @@ class Diary:
         self,
         reference: str,
         *,
-        exam_codes: Sequence[str],
+        requests: Sequence[Request],
         patient: str,
         now: datetime,
     ) -> Booking:
@@ -253,6 +266,11 @@ class Diary:
         slot that has been offered to somebody else in the meantime, which is
         the exact thing holds exist to prevent.
         """
+        if not requests:
+            # A booking for nothing is a slot taken from everybody else for no
+            # reason anybody could read off the diary afterwards.
+            raise ValueError("a booking has to be for something")
+
         held = self._holds.get(reference)
         if held is None:
             raise HoldExpired("that hold is not here any more")
@@ -270,7 +288,7 @@ class Diary:
         booking = Booking(
             reference=held.reference,
             slots=held.slots,
-            exam_codes=tuple(exam_codes),
+            requests=tuple(requests),
             patient=patient,
             made_at=now,
         )

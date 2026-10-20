@@ -139,6 +139,23 @@ class Request:
     def complete(self) -> bool:
         return not self.missing()
 
+    @property
+    def description(self) -> str:
+        """What this is, in the words it is read back to somebody in.
+
+        Here rather than with the conversation, because the diary needs it as
+        well: a booking is for a left knee without contrast, not for the code
+        of a knee exam, and the diary is what the people at the desk open.
+        """
+        parts = [self.exam.name]
+        if self.side:
+            parts.append(self.side)
+        if self.contrast is True:
+            parts.append("with contrast")
+        elif self.contrast is False:
+            parts.append("without contrast")
+        return " ".join(parts)
+
 
 @dataclass(frozen=True)
 class Match:

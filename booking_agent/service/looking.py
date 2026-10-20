@@ -126,6 +126,7 @@ def attach(api: FastAPI, where: Clinic, clock: Callable[[], datetime]) -> None:
                     "reference": booking.reference,
                     "patient": booking.patient,
                     "exams": list(booking.exam_codes),
+                    "what": [request.description for request in booking.requests],
                     "starts": booking.slots[0].starts.isoformat(timespec="minutes"),
                     "minutes": sum(slot.minutes for slot in booking.slots),
                     "room": booking.slots[0].room,

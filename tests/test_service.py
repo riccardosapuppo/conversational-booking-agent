@@ -71,6 +71,8 @@ class AWholeCall(unittest.TestCase):
         self.assertEqual(done["stage"], "booked")
         self.assertEqual(done["booking"]["patient"], "Mario Rossi")
         self.assertEqual(done["booking"]["exams"], ["MRI-KNEE"])
+        # Which knee, and whether contrast: the two things a code cannot say.
+        self.assertEqual(done["booking"]["what"], ["MRI knee left without contrast"])
         self.assertIn(done["booking"]["reference"], done["reply"])
 
     def test_asking_where_it_has_got_to_does_not_move_it_on(self) -> None:
