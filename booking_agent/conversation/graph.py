@@ -78,6 +78,7 @@ class Agent:
         clinic_name: str = "the clinic",
         opening_hours: str = "Monday to Friday, 8am to 6pm",
         address: str = "14 Mulberry Lane",
+        currency: str = "",
     ) -> None:
         self._catalogue = catalogue
         self._diary = diary
@@ -85,6 +86,7 @@ class Agent:
         self._clinic = clinic_name
         self._hours = opening_hours
         self._address = address
+        self._currency = currency
         self._graph = self._build()
 
     # ------------------------------------------------------------------ turn
@@ -238,6 +240,14 @@ class Agent:
         }
 
     def _answer(self, state: Turn) -> Turn:
+        named = self._priced(state["reading"].exam_text)
+        if named:
+            # What it costs, for the exams the question names: all of them
+            # when the words fit more than one equally, because quoting one
+            # knee's price to somebody asking about the other is a guess.
+            prices = " and ".join(f"{exam.name} costs {self._money(exam.price)}" for exam in named)
+            return {**state, "reply": f"{prices}. Would you like to book something?"}
+
         return {
             **state,
             "reply": (
@@ -245,6 +255,21 @@ class Agent:
                 "Would you like to book something?"
             ),
         }
+
+    def _priced(self, exam_text: str) -> list:
+        """The exams a price question is about: the best matches, up to three."""
+        if not exam_text:
+            return []
+        found = self._catalogue.search(exam_text)
+        if not found:
+            return []
+        best = found[0].score
+        return [match.exam for match in found if abs(match.score - best) < 1e-9][:3]
+
+    def _money(self, amount: float) -> str:
+        """A price as it is said: whole amounts without the pennies."""
+        figure = f"{amount:,.0f}" if amount == int(amount) else f"{amount:,.2f}"
+        return f"{self._currency}{figure}"
 
     def _clarify(self, state: Turn) -> Turn:
         """Asks for exactly one missing thing, and says why it is being asked."""
@@ -273,7 +298,7 @@ class Agent:
             if picked is None:
                 names = " or ".join(exam.name for exam in conversation.candidates)
                 return {**state, "reply": f"Sorry — was that {names}?"}
-            conversation.requests = [Request(exam=picked)]
+            conversation.requests = [self._with_what_was_said(conversation, Request(exam=picked))]
             conversation.candidates = []
 
         self._absorb(conversation, reading)
@@ -525,6 +550,18 @@ class Agent:
             return Catalogue(conversation.candidates)
         return self._catalogue
 
+    @staticmethod
+    def _with_what_was_said(conversation: Conversation, request: Request) -> Request:
+        """A request, with the side and contrast said before it was clear which exam."""
+        made = Request(
+            exam=request.exam,
+            side=request.side or conversation.said_side,
+            contrast=request.contrast if request.contrast is not None else conversation.said_contrast,
+        )
+        conversation.said_side = None
+        conversation.said_contrast = None
+        return made
+
     def _absorb(self, conversation: Conversation, reading: Reading) -> None:
         """Puts what was understood into what is known.
 
@@ -544,9 +581,35 @@ class Agent:
                 request = self._catalogue.resolve(reading.exam_text)
 
             if request is not None:
+                request = self._with_what_was_said(conversation, request)
+
+                # The same exam named again keeps what is already known about
+                # it. A turn can be read into the state twice, by the routing
+                # and then by the node it routes to, and the second reading of
+                # "the mri one" replaced a request that had just been given its
+                # side and contrast with one that had neither. An answer that
+                # repeats the exam is not a request to forget its details.
+                if conversation.requests and conversation.requests[0].exam == request.exam:
+                    known = conversation.requests[0]
+                    request = Request(
+                        exam=request.exam,
+                        side=request.side or known.side,
+                        contrast=request.contrast if request.contrast is not None else known.contrast,
+                    )
+
                 conversation.requests = [request]
                 conversation.candidates = []
                 return
+
+        # Said with an exam that could be either of two: kept until it is
+        # clear which, rather than dropped and asked for again a moment later.
+        # "Knee, left, no contrast" was answered "MRI or x-ray?", then "left
+        # or right?", then "with or without contrast?".
+        if not conversation.requests and (reading.side or reading.contrast is not None):
+            conversation.said_side = reading.side or conversation.said_side
+            if reading.contrast is not None:
+                conversation.said_contrast = reading.contrast
+            return
 
         # A side or a contrast on its own answers the last question asked.
         if conversation.requests and (reading.side or reading.contrast is not None):

@@ -166,6 +166,8 @@ _OPERATOR = (
     "anyone",
     "anybody",
     "receptionist",
+    "reception",
+    "staff",
     "speak to a",
     "speak to an",
     "talk to a",
@@ -180,13 +182,21 @@ _INFO = (
     "opening",
     "hours",
     "where are you",
+    "where is",
+    "where s",
     "address",
     "how much",
     "cost",
+    "costs",
     "price",
     "parking",
+    "car park",
     "how do i get",
 )
+
+#: A question about what something costs. Kept apart from the rest of the
+#: questions because it is the one that is asked about an exam by name.
+_PRICE = ("how much", "cost", "costs", "price")
 
 _AGREE = (
     "yes",
@@ -449,6 +459,13 @@ class Rules:
             if answer is not None:
                 return Reading(intent=answer)
 
+        # Somebody saying "how much is an MRI" has named an exam, and answering
+        # the price is more use than starting a booking. A comment further
+        # down said so for a long time while the code started the booking: the
+        # golden calls asked the price, and were asked which knee.
+        if exam_text and _has(lowered, _PRICE):
+            return Reading(intent="info", exam_text=exam_text)
+
         if exam_text:
             return Reading(
                 intent="book",
@@ -467,9 +484,8 @@ class Rules:
             if which is not None:
                 return Reading(intent="choose", which=which)
 
-        # Asked in this order on purpose: somebody saying "how much is an MRI"
-        # has named an exam, and answering the price is more use than starting
-        # a booking. But "how much" with no exam is still a question.
+        # "How much" with no exam in it is still a question, and so is
+        # everything else about the clinic rather than about an exam.
         if _has(lowered, _INFO):
             return Reading(intent="info")
 

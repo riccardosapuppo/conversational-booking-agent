@@ -347,6 +347,39 @@ class WhatIsLeftWhenItCannotGoOn(unittest.TestCase):
         self.assertEqual(book.taken(FRIDAY_BEFORE), [])
 
 
+class SmallerThings(unittest.TestCase):
+    def test_a_price_is_answered_with_the_price_and_nothing_is_started(self) -> None:
+        cat = catalogue()
+        one = Agent(catalogue=cat, diary=diary(), reader=Rules(cat), currency="£")
+        talk = new("p1")
+
+        said = one.reply_to(talk, "how much is an MRI of the knee?", now=FRIDAY_BEFORE)
+
+        self.assertIn("MRI knee costs £180", said)
+        self.assertEqual(talk.requests, [])
+        self.assertEqual(talk.moves, ["answer"])
+
+    def test_a_side_and_contrast_said_with_an_ambiguous_exam_are_not_asked_again(self) -> None:
+        both = Catalogue(
+            [
+                Exam(code="MRI-KNEE", name="MRI knee", modality="MR", minutes=30, price=180.0,
+                     needs_side=True, needs_contrast=True),
+                Exam(code="XR-KNEE", name="X-ray knee", modality="XR", minutes=10, price=45.0, needs_side=True),
+            ]
+        )
+        one = Agent(catalogue=both, diary=diary(), reader=Rules(both))
+        talk = new("p2")
+
+        asked = one.reply_to(talk, "knee, left, no contrast", now=FRIDAY_BEFORE)
+        self.assertIn("did you mean", asked.lower())
+
+        said = one.reply_to(talk, "the mri one", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.requests[0].side, "left")
+        self.assertIs(talk.requests[0].contrast, False)
+        self.assertIn("name", said.lower())
+
+
 class WhenTheSlotGoes(unittest.TestCase):
     def test_taken_between_offering_and_answering(self) -> None:
         book = diary()

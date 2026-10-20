@@ -493,7 +493,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 270 tests
+python -m unittest discover -s tests -t .   # 277 tests
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
 python -m tools.telephone                   # a whole call down a telephone line
@@ -514,7 +514,7 @@ readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 254 of the 270**, and it will be green
+which is worth saying out loud: **CI runs 261 of the 277**, and it will be green
 on the day the console breaks that way again. All three of those figures are
 counted back out of the suite by [a test](tests/test_diagram.py), because a
 sentence admitting what is not checked is the last one that should be allowed

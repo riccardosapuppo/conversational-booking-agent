@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Sequence
 
-from booking_agent.clinic.catalogue import Exam, Request
+from booking_agent.clinic.catalogue import Exam, Request, Side
 from booking_agent.clinic.diary import Booking, Slot
 
 #: Why a conversation was handed to a person. Kept as a closed set rather than
@@ -84,6 +84,11 @@ class Conversation:
     #: things the agent said out loud a moment ago, and an agent that forgets
     #: what it just asked asks it again.
     candidates: list[Exam] = field(default_factory=list)
+
+    #: A side and a contrast said while it was not yet clear which exam they
+    #: belonged to, kept for the exam once it is.
+    said_side: Side | None = None
+    said_contrast: bool | None = None
 
     #: What was offered last, so "the second one" means something.
     offered: list[Slot] = field(default_factory=list)

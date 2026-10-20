@@ -66,6 +66,7 @@ def run(path: Path, *, show: bool) -> str:
         clinic_name=clinic.name,
         opening_hours=clinic.opening_hours,
         address=clinic.address,
+        currency=clinic.currency,
     )
 
     conversation = new(path.stem)

@@ -43,6 +43,7 @@ def main(argv: list[str]) -> int:
         clinic_name=clinic.name,
         opening_hours=clinic.opening_hours,
         address=clinic.address,
+        currency=clinic.currency,
     )
     conversation = new("talk")
 

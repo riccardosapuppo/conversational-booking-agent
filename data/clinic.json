@@ -3,6 +3,7 @@
   "name": "Kesterby Diagnostic Centre",
   "opening_hours": "Monday to Friday, 8am to 6pm",
   "address": "14 Mulberry Lane, Kesterby",
+  "currency": "£",
 
   "exams": [
     {

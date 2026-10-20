@@ -4,8 +4,8 @@
   "laid_out_from": "2026-09-07",
   "now": "2026-09-04T09:00",
   "thresholds": {
-    "critical": 0.89,
-    "overall": 0.9
+    "critical": 0.95,
+    "overall": 0.96
   },
   "cases": [
     {

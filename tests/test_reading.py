@@ -234,6 +234,22 @@ class GivingAName(unittest.TestCase):
         self.assertEqual(reader().read("RSSMRA85T10A562S", expecting="patient").name, "")
 
 
+class QuestionsAndPeopleSaidOtherWays(unittest.TestCase):
+    def test_staff_is_a_person(self) -> None:
+        self.assertEqual(reader().read("I'd rather speak with a member of staff").intent, "operator")
+
+    def test_where_is_the_clinic_is_a_question(self) -> None:
+        self.assertEqual(reader().read("where is the clinic").intent, "info")
+
+    def test_a_price_asked_about_an_exam_is_a_question_about_that_exam(self) -> None:
+        # A comment here said so for a long time, while the code started a
+        # booking and asked which knee.
+        reading = reader().read("how much is an MRI of the knee?")
+
+        self.assertEqual(reading.intent, "info")
+        self.assertTrue(reading.exam_text)
+
+
 class OtherThings(unittest.TestCase):
     def test_questions_about_the_clinic(self) -> None:
         for said in ("what time do you open", "where are you", "is there parking"):

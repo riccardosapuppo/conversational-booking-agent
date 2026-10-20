@@ -108,6 +108,7 @@ def build(
         clinic_name=where.name,
         opening_hours=where.opening_hours,
         address=where.address,
+        currency=where.currency,
     )
     calls = Calls()
 

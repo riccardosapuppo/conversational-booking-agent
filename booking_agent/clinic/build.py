@@ -30,6 +30,9 @@ class Clinic:
     address: str
     catalogue: Catalogue
     diary: Diary
+    #: What the prices are in, said in front of them. Empty for a clinic
+    #: that never said, which then quotes bare numbers rather than a guess.
+    currency: str = ""
 
 
 def _time(written: str) -> time:
@@ -80,6 +83,7 @@ def from_dict(described: dict[str, Any], *, starting: date) -> Clinic:
         address=str(described.get("address", "")),
         catalogue=load(described["exams"]),
         diary=Diary(rooms, sessions_from(described["sessions"], starting=starting)),
+        currency=str(described.get("currency", "")),
     )
 
 

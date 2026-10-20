@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import unittest
 
-from booking_agent.clinic.catalogue import Catalogue, Exam, contrast_in, load, side_in
+from booking_agent.clinic.catalogue import Catalogue, Exam, Request, contrast_in, load, side_in
 
 
 def catalogue() -> Catalogue:
@@ -208,6 +208,33 @@ class TheWordsThatTurnADetailRound(unittest.TestCase):
         for said in ("I know", "sure", "yes, the left one"):
             with self.subTest(said=said):
                 self.assertFalse(unsure(said))
+
+
+class WordsThatNameNothingInParticular(unittest.TestCase):
+    def test_a_scan_is_not_an_exam_until_it_is_a_scan_of_something(self) -> None:
+        # Every exam here is a scan of something. "The doctor said a scan"
+        # was booked as an abdominal ultrasound, because "scan of the tummy"
+        # is one of its names.
+        built = load(
+            [
+                {"code": "US-ABDOMEN", "name": "Ultrasound abdomen", "modality": "US", "minutes": 20,
+                 "price": 90.0, "synonyms": ["scan of the tummy"]},
+                {"code": "MRI-KNEE", "name": "MRI knee", "modality": "MR", "minutes": 30, "price": 180.0},
+            ]
+        )
+
+        self.assertEqual(built.search("the doctor said a scan"), [])
+        self.assertEqual([match.exam.code for match in built.search("a scan of the tummy")], ["US-ABDOMEN"])
+
+    def test_a_side_for_an_exam_with_no_sides_is_not_kept(self) -> None:
+        # "Chest pain right now" was a chest x-ray, the right one.
+        chest = Exam(code="XR-CHEST", name="X-ray chest", modality="XR", minutes=10, price=40.0)
+        knee = Exam(code="XR-KNEE", name="X-ray knee", modality="XR", minutes=10, price=45.0, needs_side=True)
+
+        self.assertIsNone(Request(exam=chest, side="right").side)
+        self.assertIsNone(Request(exam=chest, contrast=True).contrast)
+        self.assertEqual(Request(exam=knee, side="right").side, "right")
+        self.assertEqual(Request(exam=chest, side="right").description, "X-ray chest")
 
 
 class Loading(unittest.TestCase):

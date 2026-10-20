@@ -528,6 +528,7 @@ def run(
         clinic_name=clinic.name,
         opening_hours=clinic.opening_hours,
         address=clinic.address,
+        currency=clinic.currency,
     )
     conversation = new(case.id)
     said: list[tuple[str, str]] = []

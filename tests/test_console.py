@@ -536,8 +536,14 @@ class TheTelephoneIsHeard(Driving):
                 self.assertNotRegex(one, r"\d{1,2}:\d{2}", "a written time was read out")
                 self.assertNotRegex(one, r"\d\)", "a numbered list was read out")
 
+        # A spoken time always carries the part of the day, which is the part
+        # that does not depend on the hour this runs at. It used to look for
+        # "o'clock", which is only there when the first free time is on the
+        # hour: true in the morning, false at six minutes past three on a
+        # Tuesday afternoon, when the first three times were a quarter past,
+        # half past and a quarter to.
         self.assertTrue(
-            any("o'clock" in one for one in said),
+            any(part in one for one in said for part in ("in the morning", "in the afternoon", "in the evening")),
             "no time was ever spoken as a time",
         )
 

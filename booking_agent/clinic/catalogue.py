@@ -112,6 +112,10 @@ _NOISE = {
     "have", "has", "book", "booking", "appointment",
     "some", "any", "one", "thing", "about", "from", "with", "without",
     "can", "could", "should", "s", "t",
+    # Every exam here is a scan of something, so the word says which of them
+    # nobody: "the doctor said a scan" was an abdominal ultrasound, because
+    # "scan of the tummy" is one of its names, and was booked as one.
+    "scan", "scans",
 }
 
 
@@ -174,6 +178,16 @@ class Request:
     exam: Exam
     side: Side | None = None
     contrast: bool | None = None
+
+    def __post_init__(self) -> None:
+        # A side for an exam that has none, or a contrast for one where it is
+        # not a choice, is not a detail of the request: it is a word that
+        # happened to be in the sentence. "I have chest pain right now" was a
+        # chest x-ray, the right one, and the diary would have kept the side.
+        if not self.exam.needs_side and self.side is not None:
+            object.__setattr__(self, "side", None)
+        if not self.exam.needs_contrast and self.contrast is not None:
+            object.__setattr__(self, "contrast", None)
 
     def missing(self) -> tuple[str, ...]:
         """What still has to be asked before this can be booked."""
