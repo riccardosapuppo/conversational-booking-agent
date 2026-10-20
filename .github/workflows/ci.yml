@@ -1,9 +1,20 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  # Once a week as well, with nothing pushed. Three tests here were laid out
+  # from today with their clock stopped in September, and went red three weeks
+  # later without a commit: a check that only runs when somebody pushes cannot
+  # see a repository going stale while nobody does.
+  schedule:
+    - cron: "17 6 * * 1"
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # A job that hangs stays yellow for hours and nobody looks at it; one that
+    # fails sends an email.
+    timeout-minutes: 15
 
     # The README says "Python 3.10 or newer". Running both ends of that makes
     # it a fact rather than a claim: 3.10 is the oldest the dependencies allow,
@@ -23,6 +34,29 @@ jobs:
 
       - name: Tests
         run: python -m unittest discover -s tests -t . -v
+
+      # A hundred calls, each with what should have happened at the end of it,
+      # scored as pass, miss or harm against two thresholds kept next to the
+      # cases. Below either, this step fails, and so does harm in a call that
+      # is not marked critical. The results are kept as JSON for a month.
+      - name: The golden calls
+        run: |
+          python -m tools.evals
+          python -m tools.evals --json > golden-${{ matrix.python-version }}.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: golden-${{ matrix.python-version }}
+          path: golden-${{ matrix.python-version }}.json
+          retention-days: 30
+          if-no-files-found: error
+
+      # The MCP server, through the SDK's own client: over the protocol in
+      # memory, and as the process a model host starts. These are in the tests
+      # above too; on their own here, so a red one says which door it was.
+      - name: The MCP server, through a client of the protocol
+        run: python -m unittest tests.test_mcp -v
 
       # The tests were written alongside the code they test, so they are good
       # at saying it still does what it did. These are whole conversations,
