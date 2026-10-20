@@ -32,7 +32,7 @@ class WhatIsAName(unittest.TestCase):
 
 
 class WhatIsNot(unittest.TestCase):
-    """Every one of the first four was booked under, once."""
+    """Every one of the first four was once taken for a name, and "yes" booked under."""
 
     def test_what_was_said_instead_of_a_name(self) -> None:
         for said in (

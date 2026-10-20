@@ -7,8 +7,9 @@ or not it asked first: a rule kept by the caller is a rule one caller forgets.
 
 The first run of the golden calls is why this exists. Asked for a name, one
 caller said "yes", another read out the tax code on their card, a third had a
-name with digits where the letters should be, and all three were booked under
-exactly that. Nobody arrives at a clinic as "yes".
+name with digits where the letters should be, and all three were taken for the
+name to book under; a call that carried on after "yes" was booked under it.
+Nobody arrives at a clinic as "yes".
 
 It is a check of what a name cannot be, not of what one is. Names are too
 various for the second, and a rule that refused "Anne-Marie O'Neill" would be

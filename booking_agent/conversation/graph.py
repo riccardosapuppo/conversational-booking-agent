@@ -433,7 +433,7 @@ class Agent:
             return {**state, "reply": "Let me find you a time first."}
 
         if not conversation.patient:
-            # It used to book "not given" here. The diary refuses that now, as
+            # It would have booked "not given" here. The diary refuses that, as
             # it refuses anything that is not a name, and asking is the answer.
             return {**state, "reply": "And what name should I put it under?"}
 

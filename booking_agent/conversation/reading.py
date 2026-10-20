@@ -442,9 +442,10 @@ class Rules:
 
         # A name, when a name is what was asked for. Only then: "Mario" in the
         # middle of a booking is not necessarily the patient. And only a name:
-        # "yes", a tax code and "I'd rather not say" were all booked under once,
-        # by the rule that anything of four words or fewer was a name. The rule
-        # is the diary's own now, so nothing can be booked under what it refuses.
+        # "yes", a tax code and "I'd rather not say" were each taken for the
+        # patient's name once, by the rule that anything of four words or fewer
+        # was one. The rule is the diary's own now, so nothing can be booked
+        # under what it refuses.
         # Nor the name of an exam: asked for a name, "abdomen" is the caller
         # saying which ultrasound, and it was booked as the patient's name. The
         # catalogue knows its own words, so this is the catalogue's answer

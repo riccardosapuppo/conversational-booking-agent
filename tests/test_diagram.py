@@ -130,5 +130,70 @@ class TheCountItQuotes(unittest.TestCase):
         self.assertEqual(int(split.group(2)), found, "and out of a different total")
 
 
+#: Number words as the README writes them.
+_WORDS = {"four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8}
+
+
+class WhatTheReadmeSaysAboutItself(unittest.TestCase):
+    """Sentences in the README that a run of something can contradict, and do."""
+
+    def test_as_many_packages_are_pinned_as_it_says(self) -> None:
+        # "It said four until somebody counted the file." Now the counting is
+        # done here, so the next package added is a failure, not a paragraph.
+        said = re.search(r"\b([A-Z][a-z]+) packages are installed, all of them pinned", readme())
+        assert said is not None, "the README no longer says how many packages are installed"
+
+        here = Path(__file__).resolve().parents[1]
+        pinned = [
+            line
+            for line in (here / "requirements.txt").read_text(encoding="utf-8").splitlines()
+            if re.match(r"^[A-Za-z0-9_.-]+==\S+$", line.strip())
+        ]
+
+        self.assertEqual(_WORDS.get(said.group(1).lower()), len(pinned), f"pinned: {pinned}")
+        self.assertIn(f"the {said.group(1).lower()} pinned packages", readme())
+
+    def test_the_golden_figures_are_the_ones_a_run_gives(self) -> None:
+        """The figures for now, against a run made now.
+
+        The figures for the first runs are history and are not checked here:
+        they are commits, and the README says which, so they can be run again.
+        """
+        from tools.evals import load, run_all, summarise
+
+        prose = " ".join(readme().split())
+        now = re.search(
+            r"\*\*(\d+) of (\d+) pass, (\d+) miss and (\w+) do harm\*\*; \*\*(\d+) of the (\d+) critical\*\* pass; "
+            r"and \*\*(\d+) of the (\d+) still held out\*\* pass",
+            prose,
+        )
+        assert now is not None, "the README no longer says how the golden calls do now"
+
+        golden = load()
+        summary = summarise(run_all(golden), golden)
+        harm = 0 if now.group(4) == "none" else int(now.group(4))
+
+        self.assertEqual(
+            (int(now.group(1)), int(now.group(2)), int(now.group(3)), harm),
+            (summary.all.passed, summary.all.calls, summary.all.missed, summary.all.harmed),
+        )
+        self.assertEqual((int(now.group(5)), int(now.group(6))), (summary.critical.passed, summary.critical.calls))
+        self.assertEqual((int(now.group(7)), int(now.group(8))), (summary.held_out.passed, summary.held_out.calls))
+
+    def test_the_production_reconstruction_section_is_word_for_word_what_it_was(self) -> None:
+        # Kept identical on purpose, whatever is added around it: it is the
+        # statement of what this repository is, and it is not edited in
+        # passing. Its fingerprint is the one it had at d7f436c.
+        import hashlib
+
+        found = re.search(r"## Production reconstruction\n(.*?)\n---\n", readme(), re.DOTALL)
+        assert found is not None, "the README has no Production reconstruction section"
+
+        self.assertEqual(
+            hashlib.sha256(found.group(1).encode("utf-8")).hexdigest(),
+            "0e4476c0706c7bc47639c1de81270d19baecfbf18ea5492f1d9726035aa13ab5",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

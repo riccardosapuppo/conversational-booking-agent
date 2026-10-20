@@ -6,6 +6,12 @@ ask, an exam to identify out of several that answer to the same word, a slot to
 hold while they decide, and a set of situations where the right thing to do is
 to stop and fetch a person.
 
+This is a reconstruction of a system in production (the last section says
+what that means), and two parts of it were never part of the original: **the
+golden calls**, a hundred scored calls that measure it, and **the MCP server**,
+which hands the clinic to a model as tools. Both were added to the
+reconstruction, and so were the corrections the golden calls led to.
+
 ## Before you start
 
 **Python 3.10 or newer**, and nothing else. No database, no message broker, no
@@ -15,10 +21,13 @@ is a decision rather than a stage it has not reached yet.
 Check what you have with `python --version`. On Windows the command is often
 `py` rather than `python`; on Linux and macOS it may be `python3`.
 
-**Measured, not estimated:** the five pinned packages bring **43 distributions**
-in with them and take **49 MB** on disk, installed once from PyPI. That is the
-entire network cost: nothing reaches out again afterwards, at any point, for
-any reason.
+**Measured, not estimated:** the six pinned packages bring **58 distributions**
+in with them and **83 MB** of files, installed once from PyPI; 20 MB of that is
+pywin32, which the MCP SDK installs on Windows only. Measured on 20 October 2026
+on Windows 10 with Python 3.13.15, in a fresh virtual environment, with
+`python -m tools.footprint`, which counted 43 distributions and 44 MB the same
+way before the server was added. That is the entire network cost: nothing
+reaches out again afterwards, at any point, for any reason.
 
 **Install into a virtual environment** (`python -m venv .venv`, then activate
 it) so that undoing all of this is deleting `.venv/` and the clone. Nothing
@@ -56,10 +65,12 @@ it, and watch it stop being free. The exam list is searched with **the agent’s
 own search**, not a filter written for the screen, which would be a second thing
 to keep in step and the one that quietly stopped agreeing.
 
-**Nothing on that page books anything.** Every booking goes through the
-conversation, which is where the rules that guard it live; a screen with its own
-path to the diary would be the path nobody tested. The views the clinic's side
-reads are read-only, and a test tries every other verb on each of them.
+**Nothing on that page books anything.** Every booking the console makes goes
+through the conversation, which is where the rules that guard it are asked; a
+screen with its own path to the diary would be the path nobody tested. The
+views the clinic's side reads are read-only, and a test tries every other verb
+on each of them. (The one other path, for a model, is further down, and is
+tested as one.)
 
 The browser is not opened in CI, with no terminal attached, or with `--no-open`
 (or `NO_OPEN=1`), and it says which of those happened.
@@ -70,11 +81,13 @@ The browser is not opened in CI, with no terminal attached, or with `--no-open`
 python -m tools.talk
 ```
 
-Five packages are installed, all of them pinned in
+Six packages are installed, all of them pinned in
 [requirements.txt](requirements.txt): LangGraph for the conversation graph,
-FastAPI, uvicorn and pydantic for the HTTP service, and httpx for the tests and
-for the telephony adapter, which calls this service the way anything else does.
-It said four until somebody counted the file. Then type at it:
+FastAPI, uvicorn and pydantic for the HTTP service, httpx for the tests and for
+the telephony adapter, which calls this service the way anything else does,
+and the MCP SDK for the server further down. It said four until somebody
+counted the file, and [a test](tests/test_diagram.py) counts it now. Then type
+at it:
 
 ```
   agent : You are through to Kesterby Diagnostic Centre. What can I book
@@ -142,7 +155,24 @@ has no way to know they are who they say they are.
 **It gives up on purpose.** Two turns of not being understood, three sets of
 times nobody likes, nothing free in a fortnight: each one ends with a named
 reason and a note the person taking over can read before they say hello. "The
-agent gave up" is not something anybody can act on.
+agent gave up" is not something anybody can act on. The three sets were in
+this paragraph long before they were in the code, which read out sets for as
+long as the diary had any; the golden calls asked.
+
+**It knows what is not a booking at all.** Chest pain, not being able to
+breathe, a broken bone: the call ends there, and the caller is told to ring the
+emergency number. A pregnancy, kidneys and contrast, an allergy to contrast, a
+pacemaker, a question about medication: a clinician has to weigh those before
+anything is booked, so a person takes the call with the caller's words in the
+note. Both are read before anything else, a name or an exam or a request for a
+person, and both are crude in the safe direction on purpose: "I'm not
+pregnant" hands over too. The first run of the golden calls booked an x-ray
+for chest pain and an MRI for somebody with a pacemaker.
+
+**A name is a name.** The diary itself refuses to write down "yes", a tax
+code, a name with digits in it or "I'd rather not say" as somebody's name, all
+of which were once taken for one; the reader asks the diary's question before
+it takes something for a name, and so does anything else that books.
 
 **A reference is for the person it is given to.** Two groups of three, from an
 alphabet with no O or I (heard as zero and one), no 0, 1, 5 or 8 (heard back as
@@ -405,6 +435,129 @@ than one that stops short, and whoever reads it finds out either way.
 [A check](tests/test_telephony.py) fails if a verb ever leaves here carrying a
 property that is not in the documentation for it.
 
+## Over the Model Context Protocol
+
+The telephone puts a switchboard in front of the agent. [booking_agent/mcp](booking_agent/mcp)
+puts a model there instead: a server for the [Model Context
+Protocol](https://modelcontextprotocol.io), built on the official Python SDK
+and pinned at 2.3.0, which hands an MCP host the clinic as seven tools. The
+model on the other end does the reading, and the tools do the booking.
+
+| | |
+|---|---|
+| `clinic_information` | who the clinic is, when it is open, where, which rooms |
+| `search_exams` | the exams a phrase could mean, best first: the agent's own search |
+| `find_slots` | the earliest free times for one exam, over the next fortnight |
+| `hold_slot` | keeps one of them for ten minutes while the caller decides |
+| `confirm_booking` | books the time kept, under the patient's name |
+| `release_hold` | gives a kept time back |
+| `hand_over` | a person, with a reason from the clinic's own list and a note |
+
+Every argument is typed, and the schema a model reads is generated from the
+annotations the code runs on: an enum for a side, an enum for a reason, a date
+and time for a start, a limit on a count. Two things a type cannot say are
+enforced as well. An argument a tool does not take is **refused by name**, not
+dropped, because `contrats` for `contrast`, dropped, is a booking with the
+contrast left out and no sign that anything went wrong; the SDK dropped it
+until it was told not to. And a time with a zone on it is refused rather than
+compared with the diary's, which has none.
+
+**This is a second way into the diary**, which this README argues against three
+times, so the rules are not written here a second time. Which times are on
+offer, and the first free ones in a fortnight, are the diary's, and the
+conversation and the server ask it the same question; what can be booked here,
+what a request still lacks, and what can go in the diary as a name are the
+clinic's. A time the diary would never have offered (the wrong room, outside
+its hours, off the quarter hour, already started) cannot be kept, and the
+diary says which. Every booking the golden calls expect is made again through
+the server, by a client of the protocol, and [a test](tests/test_mcp.py) fails
+unless it comes out of the diary the same.
+
+A refusal is a result, not a fault, and it says what to do next: *"CT
+angiography cannot be booked here: a doctor has to approve the contrast dose
+first. Tell the caller, and call hand_over with reason cannot_be_booked_here."*
+Anything else is a fault, and the model is told only that the tool failed.
+
+**What is not here, and why.** No tool moves or cancels a booking: the
+conversation hands those calls to a person because nothing here can check who
+is asking, and a tool for it would be the way round that. No tool reads a
+prescription, because this reconstruction reads none. And the server **cannot
+hear the caller**. The rules that end a call on chest pain or a pacemaker are
+the reader's, and over this protocol the reader is the model on the other end:
+the server's instructions ask it to hand over in the same cases, in the words
+of the same reasons, and nothing here can check that it does.
+
+### Connecting a host
+
+It is started by the host, not by you: a process that speaks the protocol down
+its standard input and output, with nothing listening on any port. Run on its
+own, it waits for a host that never comes.
+
+```
+python -m booking_agent.mcp
+```
+
+It is not installed as a package, so a host has to start it with the
+repository on Python's path: from the clone's folder, or with `PYTHONPATH`
+pointing at it. Neither Claude host documents which folder it starts a server
+in, so for those two it is `PYTHONPATH`. Use the Python that has the
+requirements installed in it, by its full path; the paths below are
+placeholders for wherever the clone and its `.venv` are, and the name
+`kesterby` is anything you like.
+
+**Claude Code**, from a terminal. The default scope, `local`, keeps the paths in
+your own `~/.claude.json` rather than in a file in the repository:
+
+```
+claude mcp add --env PYTHONPATH=/path/to/conversational-booking-agent --transport stdio kesterby -- /path/to/conversational-booking-agent/.venv/bin/python -m booking_agent.mcp
+```
+
+**Claude Desktop**, in `claude_desktop_config.json` (in `%APPDATA%\Claude` on
+Windows, in `~/Library/Application Support/Claude` on macOS), and then quit it
+completely and start it again:
+
+```json
+{
+  "mcpServers": {
+    "kesterby": {
+      "command": "/path/to/conversational-booking-agent/.venv/bin/python",
+      "args": ["-m", "booking_agent.mcp"],
+      "env": { "PYTHONPATH": "/path/to/conversational-booking-agent" }
+    }
+  }
+}
+```
+
+On Windows the interpreter is `.venv\Scripts\python.exe`, and in JSON every
+backslash is written twice.
+
+**Codex**, in `~/.codex/config.toml` (or `.codex/config.toml` in a project
+Codex trusts), where the folder can be given directly:
+
+```toml
+[mcp_servers.kesterby]
+command = "/path/to/conversational-booking-agent/.venv/bin/python"
+args = ["-m", "booking_agent.mcp"]
+cwd = "/path/to/conversational-booking-agent"
+```
+
+On this machine, an i7-10700 with 12 GB at rest, it answers its first request
+**1.47 seconds** after it is started: the median of five starts on 20 October
+2026, inside the ten seconds Codex waits by default and the thirty Claude Code
+does. These are the configurations as the documentation of [Claude
+Code](https://code.claude.com/docs/en/mcp), of the [protocol for Claude
+Desktop](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
+and of [Codex](https://developers.openai.com/codex/mcp) describes them on that
+day. The server has been run here through the SDK's own client, in memory and
+as a process; it has not been run inside any of the three.
+
+[tests/test_mcp.py](tests/test_mcp.py) talks to it only through that client,
+never by calling the tools: over the protocol in memory with the clock
+stopped, and as `python -m booking_agent.mcp` in a process of its own, both
+with the initialize handshake of the protocol's earlier versions and with the
+newer one the SDK prefers. Every result is checked against the schema the server publishes
+by `jsonschema`, a reader that is neither the SDK nor this project.
+
 ## How it is put together
 
 ```
@@ -412,6 +565,7 @@ booking_agent/
   clinic/        what is offered, and when it is free
     catalogue.py   exams, and the search from what somebody said
     diary.py       sessions, free slots, holds, bookings
+    names.py       what can be written down as somebody's name
     build.py       a clinic from the file that describes one
   conversation/  what to say next
     state.py       what is known so far, and what is still missing
@@ -422,15 +576,19 @@ booking_agent/
     voice.py       for somebody who cannot look back
   service/       the outside world, and the only clock in the building
   telephony/     a switchboard, translated into three requests to that service
+  mcp/           the clinic as seven tools, for a model at the other end of a pipe
 ```
 
 Nothing above imports anything below it, and [a
-test](tests/test_service.py) fails if a domain package ever learns the word
-`fastapi`. The direction of that dependency is the design, and it is exactly
-the kind of thing one convenient import undoes.
+test](tests/test_service.py) fails if a domain package ever imports `fastapi`
+or `mcp`, read off its import statements rather than its text, which had the
+word in every sentence saying it did not. The direction of that dependency is
+the design, and it is exactly the kind of thing one convenient import undoes.
 
 `telephony/` sits below `service/` and is the one package that is not part of
 it: it is a client, like the console, and imports nothing else here at all.
+`mcp/` sits beside `service/` rather than on it, with no HTTP and no port, and
+neither of the two imports the other.
 
 ### The conversation graph
 
@@ -493,11 +651,13 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 320 tests
+python -m unittest discover -s tests -t .   # 323 tests
+python -m tools.evals                       # the hundred golden calls, below
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
 python -m tools.telephone                   # a whole call down a telephone line
 python -m tools.screenshots                 # retakes the pictures above
+python -m tools.footprint                   # what installing it cost
 ```
 
 `tools.screenshots` drives **Microsoft Edge**, already on this machine, through
@@ -514,7 +674,7 @@ readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 304 of the 320**, and it will be green
+which is worth saying out loud: **CI runs 307 of the 323**, and it will be green
 on the day the console breaks that way again. All three of those figures are
 counted back out of the suite by [a test](tests/test_diagram.py), because a
 sentence admitting what is not checked is the last one that should be allowed
@@ -532,6 +692,98 @@ words *of* and *the* into an exam's vocabulary, so a caller who said "it's
 about the thing" was understood to want an abdominal ultrasound and was asked
 for their name. Point it at your own folder with `python -m tools.transcripts
 path/to/folder`.
+
+## The golden calls
+
+The transcripts say how a call ended. They cannot say whether it ended right:
+a call handed to a person is an ending, and so is a booking for the wrong knee.
+[evals/golden.json](evals/golden.json) holds a hundred calls with what should
+have happened at the end of each, and `python -m tools.evals` runs them.
+
+They come in eight kinds: everything said at once, said in pieces, changes of
+mind, things that are not a booking, asking for a person, details read off a
+prescription or a card (*w/o contrast*, *L knee*, a tax code given as a name),
+details that never arrive, and the dangerous ones. Each names its ending as the
+tool that should have been used, with what: the exam, side, contrast, patient,
+time and room of a booking, or the reason for a handover. They are written as
+what a correct agent does, not as what this one did, so a call that fails is a
+call the agent fails. The ten transcripts are among them.
+
+What is checked is **the diary**, not the reply. A booking is read back out of
+it, side and contrast included; a booking that was there before the call has to
+be exactly as it was; and a time still held once the call is over is a time
+taken from everybody else for nobody. Writing the first case found the diary
+keeping only the code of the exam: the caller heard "left without contrast"
+read back, and the diary said MRI-KNEE.
+
+Every call gets one of four verdicts, and they are not of equal weight:
+
+| | |
+|---|---|
+| **pass** | what should have happened did, with the arguments it should have had |
+| **miss** | it did not, and nothing was booked that should not have been |
+| **harm** | something was booked that should not have been, or booked wrongly, or a booking that was already there was touched |
+| **error** | the agent raised. Not a verdict, and the run fails |
+
+A miss costs a caller a minute with a person; harm is the wrong scan. So there
+are two thresholds, kept next to the cases: the share of the calls marked
+**critical** that pass, and the share of **all** of them. Below either the run
+fails, and so does harm in any call not marked critical, because then the label
+was wrong. The thresholds are the shares measured, rounded down, and [a
+test](tests/test_evals.py) keeps them there: they go up when the agent does,
+and with a hundred calls one call that stops passing is below the line. Every
+assertion is deterministic. Nothing is judged by a model.
+
+**The first run**, on 20 October 2026, on the eighty calls written first:
+**48 of 80 passed, 17 missed and 15 did harm**, and 19 of the 47 critical ones
+passed. Among the harm: a chest x-ray, the right one, for "I have chest pain
+right now"; the left knee for "not the left one"; contrast for "w/o contrast",
+for "contrast-free" and for "I'm not sure about the contrast"; an abdominal
+ultrasound for "the doctor said a scan". Two more took "yes" and a tax code
+for the patient's name, and ended before anything was booked under them.
+Reading the run, rather than only running it,
+found one that no call was looking for, "I'm not sure" read as a yes, and
+correcting that found "not that one" read as one too.
+
+The rules were then corrected against those eighty, so on their own they can
+only say that the corrections hold. **Twenty-four more were written after the
+corrections** and **run once**, on 20 October 2026: **21 passed, and 3 did
+harm**. They were written by the person who had just made the corrections,
+which makes them a test of whether the rules generalise and not a blind one.
+"Abdomen", said to "what name should I put it under?", became the patient's
+name; "dunno about the contrast" was a yes to contrast; "my chest hurts a lot
+and I feel dizzy" was a chest x-ray. Those three were corrected for afterwards,
+and the file marks them as no longer held out, with the date they failed. Four
+of the first eighty, which repeated others and had passed on every run, were
+taken out to keep the set at a hundred.
+
+**Now**, measured on 20 October 2026 with `python -m tools.evals`: **97 of 100
+pass, 3 miss and none do harm**; **62 of the 64 critical** pass; and **21 of
+the 21 still held out** pass. The three misses are where rules stop: "XR knee
+rt" names the exam by the code of its modality, "C-" is radiology shorthand
+for no contrast that disappears with the punctuation, and "do you do MRI scans
+on Saturdays?" is a question about days that names an exam. Each ends with the
+agent asking, never guessing, and [a test](tests/test_evals.py) checks this
+paragraph's figures against a fresh run.
+
+```
+python -m tools.evals            a line per call, the totals and the thresholds
+python -m tools.evals --show     and the whole of every call that did not pass
+python -m tools.evals --json     the same as JSON, which CI keeps for a month
+```
+
+The two earlier runs are commits, and can be run again: `git checkout 9cde535`
+for the first, and for the twenty-four, the rules of `ac7e8d5` with the cases
+of `ac231ba` (`git checkout ac7e8d5`, then `git checkout ac231ba --
+evals/golden.json`).
+
+What a hundred scripted calls cannot do is adapt. A caller here says the next
+line whatever the agent asked, so a call that goes off the path fails rather
+than recovering, and the set measures this agent against this clinic and
+nothing wider. And it does not know which reader it is run against:
+[tools/evals.py](tools/evals.py) takes any class with the one method of
+`Reader`, so the same hundred calls can be put to another reader without
+changing one of them.
 
 ## The service
 
@@ -603,10 +855,17 @@ Replace it with your own and pass it to either entry point with `--clinic`.
 ## What it does not do
 
 No model and no database, so a restart forgets the diary. Reading is rules,
-which is enough for the sentences in `data/conversations/` and will not survive
-everything a real switchboard hears; the `Reader` protocol in `reading.py` is
-one method wide, so a model-backed reader is a new class and no change to
-anything else. That was the point of putting the boundary there.
+which is enough for the sentences in `data/conversations/` and for nearly all
+of the golden calls, and will not survive everything a real switchboard hears:
+the rules for what cannot wait, what a clinician has to see and what counts as
+not knowing are lists of words, and the calls written after them found two of
+those lists short on the day the lists were written. The `Reader` protocol in `reading.py` is one method wide, so a
+model-backed reader is a new class and no change to anything else. That was
+the point of putting the boundary there.
+
+The MCP server keeps its holds and its handovers in memory, as the service
+keeps its calls, and a handover goes nowhere: it records what a person would
+be told, and there is no person.
 
 It does not answer a telephone, and nothing here pretends otherwise: there is
 no number, no account, no credential and no running switchboard. What there is
