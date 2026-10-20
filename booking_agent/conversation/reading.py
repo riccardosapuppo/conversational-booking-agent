@@ -225,6 +225,14 @@ _REFUSE = ("no", "nope", "not that", "another", "something else", "different", "
 #: take the no and turn "no problem" into a request for other times.
 _AGREE_ANYWAY = ("no problem", "no worries", "why not", "of course")
 
+#: What can stand next to one of those and leave it a yes: more of the same.
+#: "Why not the earlier one" is not agreeing to the time just read back.
+_POLITE = {
+    "yes", "yeah", "yep", "ok", "okay", "sure", "fine", "perfect", "great", "lovely",
+    "good", "please", "thanks", "thank", "you", "go", "ahead", "book", "it", "that",
+    "s", "sounds", "absolutely", "certainly", "do",
+}
+
 #: What takes back something said a moment ago: "sorry, I meant without
 #: contrast", "no wait, no contrast", "make it the right one". A side or a
 #: contrast said with one of these is a correction, whatever was asked.
@@ -325,14 +333,35 @@ def _yes_or_no(text: str) -> Literal["agree", "refuse"] | None:
     is not a yes. "Not that one" contains "that one" and was read as agreeing
     to it, which to "shall I book that?" books the time just turned down; the
     direction it is safe to be wrong in is the one that asks again. A yes with
-    a "not" in it ("not ok", "that's not fine") is neither, and nor is one with
-    a "no" that is part of agreeing ("no problem"), which is read first.
+    a "not" in it ("not ok", "that's not fine") is neither.
+
+    The agreements with a "no" in them ("no problem") are read first, or the no
+    would turn them into refusals, and they are a yes only when nothing else in
+    the message says otherwise. Read first and on their own they booked "of
+    course not" and "no problem, but not that time", and a review of this file
+    found both. What is left once the agreement is taken out decides it: a
+    refusal is a no, more politeness or nothing is a yes, and anything else is
+    neither.
     """
-    if _has(text, _AGREE_ANYWAY):
-        return "agree"
+    words = _tokens(text)
+    agreement = _first(text, _AGREE_ANYWAY)
+
+    if agreement:
+        taken = agreement.split()
+        rest = words
+        for start in range(len(words) - len(taken) + 1):
+            if words[start : start + len(taken)] == taken:
+                rest = words[:start] + words[start + len(taken) :]
+                break
+        if _has(" ".join(rest), _REFUSE) or {"not", "never"} & set(rest):
+            return "refuse"
+        if all(word in _POLITE for word in rest):
+            return "agree"
+        return None
+
     if _has(text, _REFUSE):
         return "refuse"
-    if _has(text, _AGREE) and "not" not in _tokens(text):
+    if _has(text, _AGREE) and "not" not in words:
         return "agree"
     return None
 
@@ -426,6 +455,25 @@ class Rules:
             if answer is not None:
                 return Reading(intent="book", contrast=answer == "agree")
 
+        # A name, when a name is what was asked for. Only then: "Mario" in the
+        # middle of a booking is not necessarily the patient. And only a name:
+        # "yes", a tax code and "I'd rather not say" were each taken for the
+        # patient's name once, by the rule that anything of four words or fewer
+        # was one. The rule is the diary's own now, so nothing can be booked
+        # under what it refuses.
+        # Nor the name of an exam: asked for a name, "abdomen" is the caller
+        # saying which ultrasound, and it was booked as the patient's name. The
+        # catalogue knows its own words, so this is the catalogue's answer
+        # rather than another list here.
+        # And before the corrections below, because a name can have an initial
+        # in it that is also a side: "Mario R. Rossi" was read as the right
+        # knee and no name at all. What the diary would take as a name is a
+        # name, and a correction has words in it no name has.
+        if expecting == "patient":
+            name = text.strip().rstrip(".")
+            if plausible_name(name) and not exam_text:
+                return Reading(intent="book", name=name)
+
         # A side or a contrast taking back one said a moment ago, whatever
         # the question on the table was. Asked for a name, "no wait, no
         # contrast" was taken as the name, four words long, and the booking
@@ -439,21 +487,6 @@ class Rules:
             wanted = contrast_in(text)
             if side is not None or wanted is not None:
                 return Reading(intent="book", side=side, contrast=wanted)
-
-        # A name, when a name is what was asked for. Only then: "Mario" in the
-        # middle of a booking is not necessarily the patient. And only a name:
-        # "yes", a tax code and "I'd rather not say" were each taken for the
-        # patient's name once, by the rule that anything of four words or fewer
-        # was one. The rule is the diary's own now, so nothing can be booked
-        # under what it refuses.
-        # Nor the name of an exam: asked for a name, "abdomen" is the caller
-        # saying which ultrasound, and it was booked as the patient's name. The
-        # catalogue knows its own words, so this is the catalogue's answer
-        # rather than another list here.
-        if expecting == "patient":
-            name = text.strip().rstrip(".")
-            if plausible_name(name) and not exam_text:
-                return Reading(intent="book", name=name)
 
         if _has(lowered, _MANAGE):
             return Reading(intent="manage")

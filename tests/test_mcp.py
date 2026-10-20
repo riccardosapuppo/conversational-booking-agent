@@ -305,6 +305,15 @@ class Booking(Talking):
         booked = await self.ok("confirm_booking", hold=held["hold"], patient="Anna Bianchi")
         self.assertEqual(booked["patient"], "Anna Bianchi")
 
+    async def test_but_a_name_with_an_initial_in_it_is_one(self) -> None:
+        # Refused once, because the A was a word of a sentence: the diary's
+        # rule turned away a person for being called the wrong thing.
+        held = await self.kept()
+
+        booked = await self.ok("confirm_booking", hold=held["hold"], patient="A. Smith")
+
+        self.assertEqual(booked["patient"], "A. Smith")
+
     async def test_a_hold_this_server_never_made(self) -> None:
         await self.refused("confirm_booking", saying="Call hold_slot first", hold="CDF-HJK", patient="Anna Bianchi")
 

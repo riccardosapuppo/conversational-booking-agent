@@ -208,7 +208,21 @@ class YesNoAndNeither(unittest.TestCase):
         self.assertEqual(reader().read("not that one", expecting="confirm").intent, "refuse")
 
     def test_a_no_that_is_part_of_agreeing(self) -> None:
-        self.assertEqual(reader().read("no problem, go ahead", expecting="confirm").intent, "agree")
+        for said in ("no problem, go ahead", "of course", "no worries, book it", "of course, yes please"):
+            with self.subTest(said=said):
+                self.assertEqual(reader().read(said, expecting="confirm").intent, "agree")
+
+    def test_unless_something_after_it_says_no(self) -> None:
+        # "Of course" was read first and on its own, so "of course not", said
+        # to "shall I book that?", booked it. Found by a review of this file,
+        # not by a call.
+        for said in ("of course not", "no problem, but not that time"):
+            with self.subTest(said=said):
+                self.assertEqual(reader().read(said, expecting="confirm").intent, "refuse")
+
+    def test_or_says_something_else(self) -> None:
+        # Not a yes to the time read back, whatever "why not" is on its own.
+        self.assertEqual(reader().read("why not the earlier one", expecting="confirm").intent, "unclear")
 
     def test_a_yes_with_a_not_in_it_is_neither(self) -> None:
         self.assertEqual(reader().read("that's not fine", expecting="confirm").intent, "unclear")
@@ -258,6 +272,22 @@ class GivingAName(unittest.TestCase):
         self.assertEqual(reader().read("yes", expecting="patient").name, "")
         self.assertEqual(reader().read("yes", expecting="patient").intent, "agree")
         self.assertEqual(reader().read("RSSMRA85T10A562S", expecting="patient").name, "")
+
+    def test_with_an_initial_that_is_also_a_side(self) -> None:
+        # The side used to be looked for first, so "Mario R. Rossi" was the
+        # right knee and no name at all, and "L. Bianchi" the left one.
+        for name in ("Mario R. Rossi", "L. Bianchi"):
+            with self.subTest(name=name):
+                reading = reader().read(name, expecting="patient")
+                self.assertEqual(reading.name, name)
+                self.assertIsNone(reading.side)
+
+    def test_but_a_side_or_a_contrast_is_not_a_name_however_it_is_spelled(self) -> None:
+        for said, side, contrast in (("lt", "left", None), ("bilateral", "both", None), ("plain", None, False)):
+            with self.subTest(said=said):
+                reading = reader().read(said, expecting="patient")
+                self.assertEqual(reading.name, "")
+                self.assertEqual((reading.side, reading.contrast), (side, contrast))
 
 
 class QuestionsAndPeopleSaidOtherWays(unittest.TestCase):

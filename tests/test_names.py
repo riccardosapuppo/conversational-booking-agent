@@ -30,6 +30,27 @@ class WhatIsAName(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(plausible_name(name), why_not_a_name(name))
 
+    def test_names_made_of_words_a_sentence_uses(self) -> None:
+        # Every one of these was refused by the first version of the rule,
+        # which had every short word of a sentence in it: An is a given name,
+        # A and I are initials, and the rest are names people have.
+        for name in (
+            "An Nguyen",
+            "A. Smith",
+            "I. Rossi",
+            "Ray Smith",
+            "Said Ahmed",
+            "Can Yilmaz",
+            "Do Van Minh",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(plausible_name(name), why_not_a_name(name))
+
+    def test_and_initials_that_are_also_a_side(self) -> None:
+        for name in ("Mario R. Rossi", "L. Bianchi", "Mario R Rossi"):
+            with self.subTest(name=name):
+                self.assertTrue(plausible_name(name), why_not_a_name(name))
+
 
 class WhatIsNot(unittest.TestCase):
     """Every one of the first four was once taken for a name, and "yes" booked under."""
@@ -45,6 +66,11 @@ class WhatIsNot(unittest.TestCase):
             "left",
             "I'm not telling you",
         ):
+            with self.subTest(said=said):
+                self.assertFalse(plausible_name(said))
+
+    def test_and_what_is_still_not_once_the_short_words_are_allowed(self) -> None:
+        for said in ("dunno", "x-ray", "of course", "I'm Anna", "it's for my mum", "lt", "bilateral", "plain"):
             with self.subTest(said=said):
                 self.assertFalse(plausible_name(said))
 

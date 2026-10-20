@@ -286,6 +286,55 @@ class WhatIsBookedIsWhatWasSaid(unittest.TestCase):
         self.assertEqual(book.taken(FRIDAY_BEFORE), [])
 
 
+class WhatTheGoldenCallsDidNotTry(unittest.TestCase):
+    """Found by a review of the reader once the golden calls passed, not by a call.
+
+    "Of course not" booked the time it turned down. "Mario R. Rossi" was the
+    right knee and no name: said again, the name was asked for again, and said
+    without the R, the right knee was booked for somebody who had said left.
+    """
+
+    def test_of_course_not_turns_the_time_down(self) -> None:
+        for refusal in ("of course not", "no problem, but not that time"):
+            with self.subTest(said=refusal):
+                book = diary()
+                one = agent(book)
+                talk = new("g1")
+                for line in ("chest x-ray", "Anna Bianchi", "1"):
+                    one.reply_to(talk, line, now=FRIDAY_BEFORE)
+                self.assertEqual(talk.stage, "confirming")
+
+                one.reply_to(talk, refusal, now=FRIDAY_BEFORE)
+
+                self.assertEqual(book.bookings(), [])
+                self.assertEqual(talk.stage, "offering")
+
+    def test_an_initial_that_is_also_a_side_is_part_of_the_name(self) -> None:
+        book = diary()
+        one = agent(book)
+        talk = new("g2")
+
+        for line in ("mri knee left no contrast", "Mario R. Rossi", "1", "yes"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+
+        bookings = book.bookings()
+        self.assertEqual(len(bookings), 1)
+        self.assertEqual(bookings[0].patient, "Mario R. Rossi")
+        self.assertEqual([request.side for request in bookings[0].requests], ["left"])
+
+    def test_and_a_side_said_instead_of_a_name_is_still_a_side(self) -> None:
+        # The name is read first now, so the ways of saying a side had to stop
+        # passing for a name, or "rt" would have been the patient.
+        one = agent()
+        talk = new("g3")
+
+        for line in ("mri knee left no contrast", "rt"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.requests[0].side, "right")
+        self.assertIsNone(talk.patient)
+
+
 class WhatIsLeftWhenItCannotGoOn(unittest.TestCase):
     """The question asked again, the times given back, and a limit to how many."""
 

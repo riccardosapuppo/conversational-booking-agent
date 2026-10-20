@@ -172,7 +172,9 @@ for chest pain and an MRI for somebody with a pacemaker.
 **A name is a name.** The diary itself refuses to write down "yes", a tax
 code, a name with digits in it or "I'd rather not say" as somebody's name, all
 of which were once taken for one; the reader asks the diary's question before
-it takes something for a name, and so does anything else that books.
+it takes something for a name, and so does anything else that books. The rule
+is of what a name cannot be, not of what one is, so An Nguyen, A. Smith and Do
+Van Minh are names; its first version turned all three away.
 
 **A reference is for the person it is given to.** Two groups of three, from an
 alphabet with no O or I (heard as zero and one), no 0, 1, 5 or 8 (heard back as
@@ -651,7 +653,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 323 tests
+python -m unittest discover -s tests -t .   # 334 tests
 python -m tools.evals                       # the hundred golden calls, below
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
@@ -674,7 +676,7 @@ readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 307 of the 323**, and it will be green
+which is worth saying out loud: **CI runs 318 of the 334**, and it will be green
 on the day the console breaks that way again. All three of those figures are
 counted back out of the suite by [a test](tests/test_diagram.py), because a
 sentence admitting what is not checked is the last one that should be allowed
@@ -776,6 +778,16 @@ The two earlier runs are commits, and can be run again: `git checkout 9cde535`
 for the first, and for the twenty-four, the rules of `ac7e8d5` with the cases
 of `ac231ba` (`git checkout ac7e8d5`, then `git checkout ac231ba --
 evals/golden.json`).
+
+**After the hundred passed**, a review of the reader found three things none of
+them tried. "Of course not", said to "shall I book that?", booked it, because
+"of course" was read first and on its own. "Mario R. Rossi", given as the name,
+was read as the right knee and no name: said again, the name was asked for
+again, and said without the R, the right knee was booked for somebody who had
+said left. And the diary turned away real names made of words a sentence uses,
+"Said Ahmed" and "Can Yilmaz" among them. Each is a test now rather than a call:
+a call written once its answer is known measures nothing, and the hundred are a
+measurement.
 
 What a hundred scripted calls cannot do is adapt. A caller here says the next
 line whatever the agent asked, so a call that goes off the path fails rather
