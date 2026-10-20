@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from booking_agent.clinic.catalogue import Catalogue, Side, contrast_in, side_in, unsure
+from booking_agent.clinic.names import plausible_name
 
 Intent = Literal[
     "book",
@@ -424,10 +425,13 @@ class Rules:
                 return Reading(intent="book", side=side, contrast=wanted)
 
         # A name, when a name is what was asked for. Only then: "Mario" in the
-        # middle of a booking is not necessarily the patient.
+        # middle of a booking is not necessarily the patient. And only a name:
+        # "yes", a tax code and "I'd rather not say" were all booked under once,
+        # by the rule that anything of four words or fewer was a name. The rule
+        # is the diary's own now, so nothing can be booked under what it refuses.
         if expecting == "patient":
-            name = text.strip()
-            if name and not _has(lowered, _OPERATOR) and len(name.split()) <= 4:
+            name = text.strip().rstrip(".")
+            if plausible_name(name):
                 return Reading(intent="book", name=name)
 
         if _has(lowered, _MANAGE):

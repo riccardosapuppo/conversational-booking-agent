@@ -190,7 +190,8 @@ class TheScorer(unittest.TestCase):
         self.assertIn("the side is right, not left", judged.why[0])
 
     def test_and_so_is_the_wrong_contrast_and_the_wrong_patient(self) -> None:
-        for side, contrast, patient in (("left", True, "Mario Rossi"), ("left", False, "yes")):
+        # The wrong patient is a real name: the diary refuses "yes" itself now.
+        for side, contrast, patient in (("left", True, "Mario Rossi"), ("left", False, "Anna Bianchi")):
             with self.subTest(contrast=contrast, patient=patient):
                 clinic = self.clinic()
                 self.booked(clinic, side=side, contrast=contrast, patient=patient)

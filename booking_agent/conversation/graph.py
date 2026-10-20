@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 
 from booking_agent.clinic.catalogue import Catalogue, Request
 from booking_agent.clinic.diary import Diary, HoldExpired, Slot, SlotGone
+from booking_agent.clinic.names import plausible_name
 from booking_agent.conversation.reading import Reader, Reading
 from booking_agent.conversation.state import Conversation, chosen_exam, offered_slot
 
@@ -32,8 +33,18 @@ from booking_agent.conversation.state import Conversation, chosen_exam, offered_
 #: already lost the caller, and the third time is worse than a transfer.
 PATIENCE = 2
 
-#: How many times to offer before giving up on finding something they like.
+#: How many times are read out at once. Three: a listener holds three in their
+#: head, and a fourth pushes the first one out.
 OFFERS = 3
+
+#: How many sets of times can be turned down before a person takes over.
+#:
+#: The line above said this was what OFFERS meant, and the README said three
+#: sets nobody likes end with a person and a reason. Neither was true: OFFERS
+#: was only ever the length of one set, and "no, something else" was answered
+#: with another set for as long as the diary had times in it. The golden calls
+#: asked the question, and this is the answer they were promised.
+SETS = 3
 
 
 class Turn(TypedDict, total=False):
@@ -150,6 +161,19 @@ class Agent:
         reading = self._reader.read(state["said"], expecting=state.get("expecting", ""))
         return {**state, "reading": reading}
 
+    def _hand_over(self, conversation: Conversation, why: str, *, note: str) -> None:
+        """Gives the call to a person, and gives back any time it was keeping.
+
+        Every handover comes through here. A time held when somebody asked for
+        a person stayed held for nobody until the hold ran out: ten minutes in
+        which that slot could not be offered to anybody else, after a call that
+        had already ended.
+        """
+        if conversation.hold:
+            self._diary.release(conversation.hold)
+            conversation.hold = None
+        conversation.hand_over(why, note=note)  # type: ignore[arg-type]
+
     def _handover(self, state: Turn) -> Turn:
         conversation = state["conversation"]
         reading = state["reading"]
@@ -173,7 +197,7 @@ class Agent:
             # In the caller's own words, because "they mentioned a pacemaker"
             # is what the person picking up needs to read before hello.
             note = f"{note}; they said: {reading.concern}"
-        conversation.hand_over(why, note=note)
+        self._hand_over(conversation, why, note=note)
 
         if why == "may_be_an_emergency":
             # Said first and said plainly. Everything after it is less
@@ -226,12 +250,20 @@ class Agent:
         """Asks for exactly one missing thing, and says why it is being asked."""
         conversation = state["conversation"]
         reading = state["reading"]
-        conversation.stage = "gathering"
 
         if reading.intent == "unclear":
+            # The question that was on the table, asked again, and nothing put
+            # away. It used to be "what are you looking to book?" whatever had
+            # been asked, and it moved the call back to gathering: a caller who
+            # mumbled while three times were being read out was then asked
+            # what they wanted to book, and their "1" a moment later meant
+            # nothing, because the times had been forgotten.
             conversation.stalled_turns += 1
-            return {**state, "reply": "Sorry — I did not catch that. What are you looking to book?"}
+            if conversation.stage == "greeting":
+                conversation.stage = "gathering"
+            return {**state, "reply": "Sorry — I did not catch that. " + self._question(conversation)}
 
+        conversation.stage = "gathering"
         conversation.stalled_turns = 0
 
         # Answering the question by position: "the second one", out of the two
@@ -251,7 +283,7 @@ class Agent:
         blocked = conversation.unbookable()
         if blocked:
             exam = blocked[0].exam
-            conversation.hand_over("cannot_be_booked_here", note=exam.name)
+            self._hand_over(conversation, "cannot_be_booked_here", note=exam.name)
             return {
                 **state,
                 "reply": (
@@ -327,7 +359,7 @@ class Agent:
         if not found:
             # Nothing in a fortnight is not something to keep looking for out
             # loud. A person can offer a waiting list; this cannot.
-            conversation.hand_over("booking_failed", note="nothing free in the next two weeks")
+            self._hand_over(conversation, "booking_failed", note="nothing free in the next two weeks")
             nothing = "anything else" if conversation.declined else "anything"
             return {
                 **state,
@@ -365,6 +397,7 @@ class Agent:
             }
 
         conversation.hold = held.reference
+        conversation.chosen = slot
         conversation.stage = "confirming"
 
         when = slot.starts
@@ -383,11 +416,16 @@ class Agent:
         if conversation.hold is None:
             return {**state, "reply": "Let me find you a time first."}
 
+        if not conversation.patient:
+            # It used to book "not given" here. The diary refuses that now, as
+            # it refuses anything that is not a name, and asking is the answer.
+            return {**state, "reply": "And what name should I put it under?"}
+
         try:
             booking = self._diary.confirm(
                 conversation.hold,
                 requests=conversation.requests,
-                patient=conversation.patient or "not given",
+                patient=conversation.patient,
                 now=self._now,
             )
         except (HoldExpired, SlotGone):
@@ -429,9 +467,49 @@ class Agent:
         # person, and it passed a test that asserted nothing had changed.
         conversation.declined.extend(conversation.offered)
         conversation.offered = []
+        conversation.refused_sets += 1
+
+        if conversation.refused_sets >= SETS:
+            self._hand_over(
+                conversation,
+                "booking_failed",
+                note=f"{conversation.summary()}; turned down {SETS} sets of times",
+            )
+            return {
+                **state,
+                "reply": (
+                    f"None of those suit, and that is {SETS} sets of times. "
+                    "I am passing you to a colleague who can look through the whole diary with you."
+                ),
+            }
 
         conversation.stage = "gathering"
         return self._offer(state)
+
+    def _question(self, conversation: Conversation) -> str:
+        """The question waiting for an answer, in the words it was first asked in."""
+        if conversation.stage == "offering" and conversation.offered:
+            return "I have these:\n" + _times(conversation.offered) + "\nWhich suits you?"
+
+        if conversation.stage == "confirming" and conversation.chosen is not None:
+            when = conversation.chosen.starts
+            return (
+                f"Shall I book {conversation.summary()}, "
+                f"on {when.strftime('%A %d %B')} at {when.strftime('%H:%M')}?"
+            )
+
+        if conversation.candidates:
+            names = " or ".join(exam.name for exam in conversation.candidates)
+            return f"Did you mean {names}?"
+
+        missing = conversation.missing()
+        if "side" in missing:
+            return "Left or right?"
+        if "contrast" in missing:
+            return "With or without contrast?"
+        if "patient" in missing:
+            return "What name should I put it under?"
+        return "What are you looking to book?"
 
     # --------------------------------------------------------------- routing
 
@@ -448,8 +526,13 @@ class Agent:
         return self._catalogue
 
     def _absorb(self, conversation: Conversation, reading: Reading) -> None:
-        """Puts what was understood into what is known."""
-        if reading.name:
+        """Puts what was understood into what is known.
+
+        A name is taken only if the diary would take it. The rules reader
+        already asks the same question; a reader that does not would otherwise
+        be found out by the diary refusing it at the very end of the call.
+        """
+        if reading.name and plausible_name(reading.name):
             conversation.patient = reading.name
 
         if reading.exam_text:

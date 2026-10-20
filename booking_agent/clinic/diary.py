@@ -25,6 +25,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Container, Iterable, Iterator, Sequence
 
 from booking_agent.clinic.catalogue import Request
+from booking_agent.clinic.names import NotAName, why_not_a_name
 
 #: How long a slot is kept while somebody makes up their mind.
 HOLD_MINUTES = 10
@@ -270,6 +271,12 @@ class Diary:
             # A booking for nothing is a slot taken from everybody else for no
             # reason anybody could read off the diary afterwards.
             raise ValueError("a booking has to be for something")
+
+        # Refused here, where every way into the diary passes, and not only by
+        # whoever happened to ask first.
+        wrong = why_not_a_name(patient)
+        if wrong:
+            raise NotAName(f"{patient!r} cannot be booked under: {wrong}")
 
         held = self._holds.get(reference)
         if held is None:

@@ -226,6 +226,13 @@ class GivingAName(unittest.TestCase):
         )
         self.assertEqual(reading.name, "")
 
+    def test_and_nor_is_a_yes_or_a_code(self) -> None:
+        # Both were booked under, by the rule that anything of four words or
+        # fewer was a name. The rule is the diary's own now.
+        self.assertEqual(reader().read("yes", expecting="patient").name, "")
+        self.assertEqual(reader().read("yes", expecting="patient").intent, "agree")
+        self.assertEqual(reader().read("RSSMRA85T10A562S", expecting="patient").name, "")
+
 
 class OtherThings(unittest.TestCase):
     def test_questions_about_the_clinic(self) -> None:

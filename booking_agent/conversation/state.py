@@ -92,8 +92,17 @@ class Conversation:
     #: else" turns into the same three times for ever.
     declined: list[Slot] = field(default_factory=list)
 
+    #: How many sets of times have been turned down. Counted rather than
+    #: worked out from ``declined``, because the last set read out can be
+    #: shorter than the others.
+    refused_sets: int = 0
+
     #: The slots being kept while they decide, if any.
     hold: str | None = None
+
+    #: The time being kept, so "shall I book that?" can be asked again with the
+    #: time in it when the answer to it is lost.
+    chosen: Slot | None = None
 
     booking: Booking | None = None
 

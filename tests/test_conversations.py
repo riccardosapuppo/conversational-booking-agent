@@ -286,6 +286,67 @@ class WhatIsBookedIsWhatWasSaid(unittest.TestCase):
         self.assertEqual(book.taken(FRIDAY_BEFORE), [])
 
 
+class WhatIsLeftWhenItCannotGoOn(unittest.TestCase):
+    """The question asked again, the times given back, and a limit to how many."""
+
+    def test_a_mumble_while_times_are_read_out_gets_the_times_again(self) -> None:
+        # It used to be asked what it wanted to book, and its "1" a moment
+        # later meant nothing, because the times had been forgotten.
+        one = agent()
+        talk = new("q1")
+
+        for line in ("mri knee left no contrast", "Anna Bianchi"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        said = one.reply_to(talk, "erm", now=FRIDAY_BEFORE)
+
+        self.assertIn("did not catch", said)
+        self.assertIn("1)", said)
+        self.assertEqual(talk.stage, "offering")
+
+        one.reply_to(talk, "1", now=FRIDAY_BEFORE)
+        self.assertEqual(talk.stage, "confirming")
+
+    def test_and_the_question_asked_again_is_the_one_that_was_asked(self) -> None:
+        one = agent()
+        talk = new("q2")
+
+        one.reply_to(talk, "mri knee", now=FRIDAY_BEFORE)
+        said = one.reply_to(talk, "erm", now=FRIDAY_BEFORE)
+
+        self.assertIn("Left or right?", said)
+
+    def test_three_sets_of_times_turned_down_go_to_a_person(self) -> None:
+        # The README said so long before the code did.
+        book = diary()
+        one = agent(book)
+        talk = new("q3")
+
+        for line in ("chest x-ray", "Marco Conti", "no, something else", "no, something else"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        self.assertIsNone(talk.handed_over, "it gave up after two sets")
+
+        said = one.reply_to(talk, "no, something else", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.handed_over, "booking_failed")
+        self.assertIn("3 sets", talk.handover_note)
+        self.assertIn("colleague", said)
+        self.assertEqual(book.taken(FRIDAY_BEFORE), [])
+
+    def test_asking_for_a_person_with_a_time_held_gives_the_time_back(self) -> None:
+        book = diary()
+        one = agent(book)
+        talk = new("q4")
+
+        for line in ("chest x-ray", "Anna Bianchi", "2"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        self.assertTrue(book.taken(FRIDAY_BEFORE), "nothing was held to begin with")
+
+        one.reply_to(talk, "actually can I speak to somebody first", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.handed_over, "asked_for_a_person")
+        self.assertEqual(book.taken(FRIDAY_BEFORE), [])
+
+
 class WhenTheSlotGoes(unittest.TestCase):
     def test_taken_between_offering_and_answering(self) -> None:
         book = diary()

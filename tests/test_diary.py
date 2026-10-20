@@ -168,7 +168,7 @@ class Confirming(unittest.TestCase):
         booking = one.confirm(
             held.reference,
             requests=[LEFT_KNEE_PLAIN],
-            patient="A Patient",
+            patient="Anna Bianchi",
             now=EIGHT_THE_DAY_BEFORE,
         )
 
@@ -184,7 +184,7 @@ class Confirming(unittest.TestCase):
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
 
         booking = one.confirm(
-            held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+            held.reference, requests=[LEFT_KNEE_PLAIN], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE
         )
         kept = one.booking(booking.reference)
 
@@ -194,13 +194,31 @@ class Confirming(unittest.TestCase):
         self.assertEqual(kept.requests[0].description, "MRI knee left without contrast")
         self.assertEqual(kept.exam_codes, ("MRI-KNEE",))
 
+    def test_and_it_is_booked_under_a_name_or_not_at_all(self) -> None:
+        # Refused by the diary itself, so every way into it meets the rule:
+        # "yes" and a tax code were both booked under once.
+        from booking_agent.clinic.names import NotAName
+
+        one = diary()
+        first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
+        held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
+
+        for said in ("yes", "RSSMRA85T10A562S"):
+            with self.subTest(patient=said):
+                with self.assertRaises(NotAName):
+                    one.confirm(held.reference, requests=[LEFT_KNEE_PLAIN], patient=said, now=EIGHT_THE_DAY_BEFORE)
+
+        # The hold survives the refusal, to be confirmed under the real name.
+        booking = one.confirm(held.reference, requests=[LEFT_KNEE_PLAIN], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE)
+        self.assertEqual(booking.patient, "Anna Bianchi")
+
     def test_a_booking_for_nothing_is_not_a_booking(self) -> None:
         one = diary()
         first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
 
         with self.assertRaises(ValueError):
-            one.confirm(held.reference, requests=[], patient="A Patient", now=EIGHT_THE_DAY_BEFORE)
+            one.confirm(held.reference, requests=[], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE)
 
         # And the hold is still there to be confirmed properly.
         self.assertIn(first, one.taken(EIGHT_THE_DAY_BEFORE))
@@ -216,7 +234,7 @@ class Confirming(unittest.TestCase):
             one.confirm(
                 held.reference,
                 requests=[LEFT_KNEE_PLAIN],
-                patient="A Patient",
+                patient="Anna Bianchi",
                 now=EIGHT_THE_DAY_BEFORE + timedelta(hours=1),
             )
 
@@ -228,14 +246,14 @@ class Confirming(unittest.TestCase):
 
         with self.assertRaises(HoldExpired):
             one.confirm(
-                held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+                held.reference, requests=[LEFT_KNEE_PLAIN], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE
             )
 
     def test_a_booked_slot_is_gone_for_good(self) -> None:
         one = diary()
         first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
-        one.confirm(held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE)
+        one.confirm(held.reference, requests=[LEFT_KNEE_PLAIN], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE)
 
         much_later = EIGHT_THE_DAY_BEFORE + timedelta(hours=2)
         still = [s.starts for s in one.free(modality="MR", minutes=30, day=MONDAY, now=much_later)]
@@ -246,7 +264,7 @@ class Confirming(unittest.TestCase):
         first = next(one.free(modality="MR", minutes=30, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
         held = one.hold([first], now=EIGHT_THE_DAY_BEFORE)
         booking = one.confirm(
-            held.reference, requests=[LEFT_KNEE_PLAIN], patient="A Patient", now=EIGHT_THE_DAY_BEFORE
+            held.reference, requests=[LEFT_KNEE_PLAIN], patient="Anna Bianchi", now=EIGHT_THE_DAY_BEFORE
         )
 
         self.assertTrue(one.cancel(booking.reference))
