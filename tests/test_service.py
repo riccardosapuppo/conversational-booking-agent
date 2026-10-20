@@ -175,20 +175,97 @@ class WhenSomethingIsWrong(unittest.TestCase):
         self.assertEqual(client.get("/health").json()["calls"], 1)
 
 
+def imported(source: str) -> set[str]:
+    """Every module a source file imports, by its full dotted name.
+
+    Read off the syntax tree rather than the text. The text version looked for
+    the word "fastapi" anywhere in a file, so a comment explaining that the
+    domain does not use it counted as using it, and the word "mcp" is in every
+    sentence that says the domain does not know about the server. What a file
+    imports is what its import statements say.
+    """
+    import ast
+
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            found.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            found.add(node.module)
+    return found
+
+
+def reaches(name: str, roots: tuple[str, ...]) -> bool:
+    return any(name == root or name.startswith(root + ".") for root in roots)
+
+
+#: What the domain must never know is there: a web server, a protocol, the
+#: client that talks to a switchboard, or either of the doors built on it.
+NOT_IN_THE_DOMAIN = (
+    "fastapi",
+    "starlette",
+    "uvicorn",
+    "httpx",
+    "mcp",
+    "mcp_types",
+    "booking_agent.service",
+    "booking_agent.telephony",
+    "booking_agent.mcp",
+)
+
+
 class WhatTheServiceDoesNotKnow(unittest.TestCase):
+    here = __import__("pathlib").Path(__file__).resolve().parents[1] / "booking_agent"
+
+    def modules(self, package: str) -> list:
+        found = sorted((self.here / package).glob("*.py"))
+        # A package with no modules in it is a check of nothing.
+        self.assertTrue(found, f"booking_agent/{package} has no modules, so there is nothing to check")
+        return found
+
     def test_nothing_below_it_imports_it(self) -> None:
         # The direction of the dependency is the whole design, and it is the
         # kind of thing that gets broken by one convenient import. The domain
-        # must not know it is behind a web server.
-        from pathlib import Path
-
-        here = Path(__file__).resolve().parents[1] / "booking_agent"
+        # must not know it is behind a web server, or behind a protocol for
+        # models: both are doors, and the domain is the room.
         for package in ("clinic", "conversation", "channels"):
-            for module in (here / package).glob("*.py"):
-                with self.subTest(module=f"{package}/{module.name}"):
-                    source = module.read_text(encoding="utf-8")
-                    self.assertNotIn("booking_agent.service", source)
-                    self.assertNotIn("fastapi", source)
+            for module in self.modules(package):
+                for name in imported(module.read_text(encoding="utf-8")):
+                    with self.subTest(module=f"{package}/{module.name}", imports=name):
+                        self.assertFalse(reaches(name, NOT_IN_THE_DOMAIN), f"{package}/{module.name} imports {name}")
+
+    def test_the_server_for_models_is_beside_the_web_server_and_not_on_it(self) -> None:
+        for module in self.modules("mcp"):
+            for name in imported(module.read_text(encoding="utf-8")):
+                with self.subTest(module=module.name, imports=name):
+                    self.assertFalse(
+                        reaches(name, ("fastapi", "uvicorn", "booking_agent.service", "booking_agent.telephony")),
+                        f"mcp/{module.name} imports {name}",
+                    )
+
+    def test_and_neither_of_the_other_doors_knows_it_is_there(self) -> None:
+        for package in ("service", "telephony"):
+            for module in self.modules(package):
+                for name in imported(module.read_text(encoding="utf-8")):
+                    with self.subTest(module=f"{package}/{module.name}", imports=name):
+                        self.assertFalse(reaches(name, ("mcp", "booking_agent.mcp")), f"{package}/{module.name} imports {name}")
+
+    def test_the_check_finds_the_imports_it_is_there_to_find(self) -> None:
+        # Planted, because a check that passes by finding nothing has to be
+        # shown finding something: these four are what it exists to refuse,
+        # and the docstring that names them is not an import of any of them.
+        planted = (
+            '"""Nothing here uses fastapi or mcp."""\n'
+            "import mcp\n"
+            "import mcp.types as kinds\n"
+            "from fastapi import FastAPI\n"
+            "from booking_agent.mcp.server import build\n"
+        )
+        names = imported(planted)
+
+        self.assertEqual(names, {"mcp", "mcp.types", "fastapi", "booking_agent.mcp.server"})
+        self.assertTrue(all(reaches(name, NOT_IN_THE_DOMAIN) for name in names))
+        self.assertFalse(reaches("mcpx", NOT_IN_THE_DOMAIN), "a module merely starting with mcp is not mcp")
 
 
 if __name__ == "__main__":

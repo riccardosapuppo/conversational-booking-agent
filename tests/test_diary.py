@@ -159,6 +159,74 @@ class Holding(unittest.TestCase):
         self.assertFalse(one.release(held.reference))
 
 
+class WhatTheDiaryWouldOffer(unittest.TestCase):
+    """One slot asked about, against the walk ``free`` makes of a whole day.
+
+    The conversation only ever holds what it was offered. The server takes a
+    room and a time from whatever is on the other end of it, so the diary has
+    to be able to say whether that time was ever on offer, and why not.
+    """
+
+    def test_it_agrees_with_free_about_every_time_free_offers(self) -> None:
+        one = diary()
+        for modality, minutes in (("MR", 30), ("MR", 75), ("XR", 10)):
+            offered = list(one.free(modality=modality, minutes=minutes, day=MONDAY, now=EIGHT_THE_DAY_BEFORE))
+            self.assertTrue(offered, f"nothing offered for {modality} {minutes}")
+            for slot in offered:
+                with self.subTest(modality=modality, slot=f"{slot.starts:%H:%M} {slot.room}"):
+                    self.assertEqual(one.on_offer(slot, modality=modality, now=EIGHT_THE_DAY_BEFORE), "")
+
+    def test_and_says_why_for_every_time_it_would_not(self) -> None:
+        one = diary()
+        for slot, modality, why in (
+            (Slot(room="XR1", starts=NINE, minutes=30), "MR", "does not do MR"),
+            (Slot(room="CT9", starts=NINE, minutes=30), "MR", "no room CT9"),
+            (Slot(room="MR1", starts=datetime(2026, 9, 7, 9, 5), minutes=30), "MR", "every 15 minutes"),
+            (Slot(room="MR1", starts=datetime(2026, 9, 7, 11, 45), minutes=30), "MR", "not open for 30 minutes"),
+            (Slot(room="MR1", starts=datetime(2026, 9, 8, 9, 0), minutes=30), "MR", "not open"),
+            (Slot(room="MR1", starts=NINE, minutes=30), "MR", "already started"),
+        ):
+            now = NINE + timedelta(minutes=1) if why == "already started" else EIGHT_THE_DAY_BEFORE
+            with self.subTest(why=why):
+                self.assertIn(why, one.on_offer(slot, modality=modality, now=now))
+
+    def test_holding_it_with_the_modality_is_refused_and_without_it_is_not(self) -> None:
+        from booking_agent.clinic.diary import NotOnOffer
+
+        one = diary()
+        off_the_hour = Slot(room="MR1", starts=datetime(2026, 9, 7, 9, 5), minutes=30)
+
+        with self.assertRaises(NotOnOffer):
+            one.hold([off_the_hour], now=EIGHT_THE_DAY_BEFORE, modality="MR")
+        self.assertEqual(one.taken(EIGHT_THE_DAY_BEFORE), [], "a refused hold left something held")
+
+        # Without it, as before: the conversation's own holds are of times it
+        # was offered, and the diary does not second-guess those.
+        one.hold([off_the_hour], now=EIGHT_THE_DAY_BEFORE)
+
+    def test_the_earliest_times_across_days_skipping_what_was_turned_down(self) -> None:
+        one = diary()
+        first = one.earliest(modality="MR", minutes=30, now=EIGHT_THE_DAY_BEFORE, count=3)
+
+        self.assertEqual([slot.starts.strftime("%H:%M") for slot in first], ["09:00", "09:15", "09:30"])
+
+        later = one.earliest(
+            modality="MR",
+            minutes=30,
+            now=EIGHT_THE_DAY_BEFORE,
+            count=3,
+            skip={(slot.room, slot.starts) for slot in first},
+        )
+        self.assertEqual([slot.starts.strftime("%H:%M") for slot in later], ["09:45", "10:00", "10:15"])
+
+        after = one.earliest(modality="MR", minutes=30, now=EIGHT_THE_DAY_BEFORE, count=1, after=datetime(2026, 9, 7, 11, 0))
+        self.assertEqual(after[0].starts, datetime(2026, 9, 7, 11, 15))
+
+    def test_and_nothing_at_all_is_nothing_rather_than_a_wait(self) -> None:
+        empty = Diary([Room(code="MR1", name="MRI room", modalities=frozenset({"MR"}))], [])
+        self.assertEqual(empty.earliest(modality="MR", minutes=30, now=EIGHT_THE_DAY_BEFORE, count=3), [])
+
+
 class Confirming(unittest.TestCase):
     def test_a_hold_becomes_a_booking(self) -> None:
         one = diary()

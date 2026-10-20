@@ -30,6 +30,14 @@ from booking_agent.clinic.names import NotAName, why_not_a_name
 #: How long a slot is kept while somebody makes up their mind.
 HOLD_MINUTES = 10
 
+#: How far ahead anything is looked for before a person is fetched instead.
+#: A fortnight: nothing free in two weeks is not something to keep looking for
+#: out loud, and a person can offer a waiting list.
+LOOK_AHEAD_DAYS = 14
+
+#: The step times are offered at, from the moment a room opens.
+STEP_MINUTES = 15
+
 #: What a reference is made of.
 #:
 #: Not the whole alphabet, because this is read out over a telephone to
@@ -142,6 +150,16 @@ class HoldExpired(Exception):
     """Raised when a hold is confirmed after its time ran out."""
 
 
+class NotOnOffer(Exception):
+    """Raised when a slot is asked for that this diary would never have offered.
+
+    Not the same as gone. Gone is a time that was free and has been taken;
+    this is a time that was never there to take: in a room that does not do
+    the exam, outside its hours, off the quarter hours the diary works in, or
+    already in the past.
+    """
+
+
 def _sessions_for(sessions: Iterable[Session], room: str, day: date) -> list[Session]:
     return [s for s in sessions if s.room == room and s.day == day]
 
@@ -197,7 +215,7 @@ class Diary:
         minutes: int,
         day: date,
         now: datetime,
-        step: int = 15,
+        step: int = STEP_MINUTES,
     ) -> Iterator[Slot]:
         """Every slot of this length free on this day, earliest first.
 
@@ -224,14 +242,91 @@ class Diary:
 
                     start += timedelta(minutes=step)
 
+    def earliest(
+        self,
+        *,
+        modality: str,
+        minutes: int,
+        now: datetime,
+        count: int,
+        after: datetime | None = None,
+        skip: Container[tuple[str, datetime]] = (),
+    ) -> list[Slot]:
+        """The first free times of this length, over the next fortnight.
+
+        What the conversation reads out and what the server hands back are
+        this one list. ``skip`` is the times already turned down, as room and
+        start, because the diary hands out a fresh Slot every time it is asked
+        and two of them are never the same object; ``after`` is for somebody
+        who wants something later than what they have heard.
+        """
+        found: list[Slot] = []
+        day = now.date()
+
+        for _ in range(LOOK_AHEAD_DAYS):
+            for slot in self.free(modality=modality, minutes=minutes, day=day, now=now):
+                if (slot.room, slot.starts) in skip:
+                    continue
+                if after is not None and slot.starts <= after:
+                    continue
+                found.append(slot)
+                if len(found) >= count:
+                    return found
+            day += timedelta(days=1)
+
+        return found
+
+    def on_offer(self, slot: Slot, *, modality: str, now: datetime, step: int = STEP_MINUTES) -> str:
+        """Why this is not a time the diary offers for this modality; empty if it is.
+
+        The same answer ``free`` gives, asked of one slot rather than walked
+        out of a day, and without the question of whether it is taken: that is
+        ``SlotGone``, and a different thing to tell somebody.
+        """
+        room = self._rooms.get(slot.room)
+        if room is None:
+            return f"there is no room {slot.room}"
+        if modality not in room.modalities:
+            return f"{room.name} does not do {modality}"
+        if slot.starts <= now:
+            return "it has already started"
+
+        for session in _sessions_for(self._sessions, slot.room, slot.starts.date()):
+            opens = datetime.combine(session.day, session.opens)
+            closes = datetime.combine(session.day, session.closes)
+            if opens <= slot.starts and slot.ends <= closes:
+                if (slot.starts - opens) % timedelta(minutes=step):
+                    return f"times in {room.name} start every {step} minutes from {session.opens:%H:%M}"
+                return ""
+
+        return f"{room.name} is not open for {slot.minutes} minutes from {slot.starts:%H:%M} on {slot.starts:%A %d %B}"
+
     # ----------------------------------------------------------------- taking
 
-    def hold(self, slots: Sequence[Slot], now: datetime, minutes: int = HOLD_MINUTES) -> Hold:
+    def hold(
+        self,
+        slots: Sequence[Slot],
+        now: datetime,
+        minutes: int = HOLD_MINUTES,
+        *,
+        modality: str | None = None,
+    ) -> Hold:
         """Keeps these slots for one conversation.
 
         Raises if any of them has gone in the meantime, which between offering
         and answering is a thing that happens.
+
+        With ``modality``, raises as well for a slot this diary would never
+        have offered for it. The conversation only ever holds what it was
+        offered, so it never meets that; a second way in can be handed any
+        time at all, and is told so here rather than trusted to have checked.
         """
+        if modality is not None:
+            for slot in slots:
+                wrong = self.on_offer(slot, modality=modality, now=now)
+                if wrong:
+                    raise NotOnOffer(wrong)
+
         busy = self.taken(now)
         for slot in slots:
             if any(slot.overlaps(other) for other in busy):

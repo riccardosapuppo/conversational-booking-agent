@@ -17,13 +17,13 @@ something that finishes on its own — it waits, and waiting is the normal state
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
 from booking_agent.clinic.catalogue import Catalogue, Request
-from booking_agent.clinic.diary import Diary, HoldExpired, Slot, SlotGone
+from booking_agent.clinic.diary import Diary, HoldExpired, NotOnOffer, Slot, SlotGone
 from booking_agent.clinic.names import plausible_name
 from booking_agent.conversation.reading import Reader, Reading
 from booking_agent.conversation.state import Conversation, chosen_exam, offered_slot
@@ -363,23 +363,13 @@ class Agent:
 
         # Times already turned down, so "no, something else" means something
         # else. Compared on the room and the minute rather than on the object:
-        # the diary hands out a fresh Slot every time it is asked.
+        # the diary hands out a fresh Slot every time it is asked. The search
+        # itself is the diary's, the same one the server's find_slots asks, so
+        # what is read out here and what a model is handed there agree.
         already = {(slot.room, slot.starts) for slot in conversation.declined}
-
-        found: list[Slot] = []
-        day = self._now.date()
-        for _ in range(14):
-            for slot in self._diary.free(
-                modality=modality, minutes=minutes, day=day, now=self._now
-            ):
-                if (slot.room, slot.starts) in already:
-                    continue
-                found.append(slot)
-                if len(found) >= OFFERS:
-                    break
-            if len(found) >= OFFERS:
-                break
-            day = day + timedelta(days=1)
+        found = self._diary.earliest(
+            modality=modality, minutes=minutes, now=self._now, count=OFFERS, skip=already
+        )
 
         if not found:
             # Nothing in a fortnight is not something to keep looking for out
@@ -411,10 +401,11 @@ class Agent:
             }
 
         try:
-            held = self._diary.hold([slot], now=self._now)
-        except SlotGone:
+            held = self._diary.hold([slot], now=self._now, modality=conversation.requests[0].exam.modality)
+        except (SlotGone, NotOnOffer):
             # Between reading the times out and hearing the answer, somebody
-            # else took it. It is nobody's fault and it has to be said.
+            # else took it, or the call went on long enough for it to start.
+            # It is nobody's fault and it has to be said.
             conversation.offered = []
             return {
                 **state,
