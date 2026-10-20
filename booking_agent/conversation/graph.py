@@ -124,6 +124,11 @@ class Agent:
         if conversation.stage == "offering":
             return "slot"
 
+        # A time read back with "shall I book that?". Said so the reader can
+        # tell "yes, the left one" from a correction of the side.
+        if conversation.stage == "confirming":
+            return "confirm"
+
         # A question the agent asked out loud a moment ago, waiting for an
         # answer that only means something against it.
         if conversation.candidates:
@@ -288,6 +293,13 @@ class Agent:
     def _offer(self, state: Turn) -> Turn:
         conversation = state["conversation"]
         self._absorb(conversation, state["reading"])
+
+        # A new set of times replaces a time already held: a side corrected
+        # while one was being read back would otherwise leave that one held
+        # for nobody until it ran out.
+        if conversation.hold:
+            self._diary.release(conversation.hold)
+            conversation.hold = None
 
         minutes = conversation.minutes_needed()
         modality = conversation.requests[0].exam.modality

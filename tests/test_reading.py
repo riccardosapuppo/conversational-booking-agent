@@ -174,6 +174,46 @@ class ChoosingATime(unittest.TestCase):
         self.assertEqual(reader().read("something else").intent, "refuse")
 
 
+class YesNoAndNeither(unittest.TestCase):
+    """Found reading the first run of the golden calls rather than by any one case.
+
+    "I'm not sure" has the word "sure" in it, and "not that one" has "that one";
+    both were read as agreeing, and to "shall I book that?" an agreement books.
+    """
+
+    def test_not_sure_is_not_a_yes_whatever_was_asked(self) -> None:
+        for expecting in ("confirm", "slot", "contrast", "exam_choice", ""):
+            with self.subTest(expecting=expecting):
+                self.assertEqual(reader().read("I'm not sure", expecting=expecting).intent, "unclear")
+
+    def test_not_that_one_is_a_no(self) -> None:
+        self.assertEqual(reader().read("not that one", expecting="confirm").intent, "refuse")
+
+    def test_a_no_that_is_part_of_agreeing(self) -> None:
+        self.assertEqual(reader().read("no problem, go ahead", expecting="confirm").intent, "agree")
+
+    def test_a_yes_with_a_not_in_it_is_neither(self) -> None:
+        self.assertEqual(reader().read("that's not fine", expecting="confirm").intent, "unclear")
+
+
+class TakingSomethingBack(unittest.TestCase):
+    def test_asked_for_a_name_the_caller_corrects_the_contrast(self) -> None:
+        # Taken as the name once, four words long, and booked with the contrast
+        # the caller had just turned down.
+        reading = reader().read("no wait, no contrast", expecting="patient")
+
+        self.assertEqual(reading.intent, "book")
+        self.assertIs(reading.contrast, False)
+        self.assertEqual(reading.name, "")
+
+    def test_with_a_time_read_back_a_correction_is_a_correction(self) -> None:
+        reading = reader().read("sorry, I meant the right one", expecting="confirm")
+        self.assertEqual(reading.side, "right")
+
+    def test_but_a_yes_that_names_the_side_is_still_a_yes(self) -> None:
+        self.assertEqual(reader().read("yes, the left one", expecting="confirm").intent, "agree")
+
+
 class GivingAName(unittest.TestCase):
     def test_only_when_a_name_was_asked_for(self) -> None:
         # A word in the middle of a booking is not necessarily the patient.

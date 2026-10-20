@@ -19,15 +19,34 @@ from typing import Iterable, Literal, Sequence
 
 Side = Literal["left", "right", "both"]
 
-#: Words that name a side, in the language people actually use on the phone.
+#: Words that name a side, in the language people actually use on the phone,
+#: and in the shorthand a request form uses for it.
 _SIDES: dict[str, Side] = {
     "left": "left",
     "l": "left",
+    "lt": "left",
     "right": "right",
     "r": "right",
+    "rt": "right",
     "both": "both",
     "bilateral": "both",
+    "bilat": "both",
 }
+
+#: The other knee, for "not the left one". Both has no other.
+_OTHER: dict[Side, Side] = {"left": "right", "right": "left"}
+
+#: What comes after "right" when it is not a side. "I have chest pain right
+#: now" was read as the right side of a chest x-ray, and booked as one.
+_NOT_A_SIDE_AFTER = {"now", "away", "here", "there", "then"}
+
+#: What comes before "right" when it is not a side either: "all right", "that's
+#: right".
+_NOT_A_SIDE_BEFORE = {"all", "that", "thats", "s"}
+
+#: Words that take back what was just said. "The right one, no wait, left" is
+#: the left one; the side said first is the one being corrected.
+_CORRECTIONS = {"no", "wait", "sorry", "actually", "mean", "meant", "rather", "instead"}
 
 #: The words that name contrast at all.
 _CONTRAST = {"contrast", "enhanced", "gadolinium"}
@@ -39,8 +58,38 @@ _CONTRAST = {"contrast", "enhanced", "gadolinium"}
 #: asked for, in the one place where being wrong is worst.
 _REFUSALS = {"no", "not", "without", "non", "none", "never"}
 
+#: What turns the word after it into a refusal: "contrast-free".
+_REFUSED_AFTER = {"free"}
+
 #: Words that refuse contrast without naming it.
 _PLAIN = {"plain", "unenhanced", "noncontrast"}
+
+#: Not knowing, said in the ways people say it. A message with one of these in
+#: it has not answered "with or without contrast?", whatever else it contains:
+#: "I'm not sure about the contrast" was read as a yes, because the word in
+#: front of "contrast" was "the".
+_UNSURE = (
+    ("not", "sure"),
+    ("unsure",),
+    ("don", "t", "know"),
+    ("dont", "know"),
+    ("do", "not", "know"),
+    ("no", "idea"),
+    ("not", "certain"),
+    ("can", "t", "remember"),
+    ("cant", "remember"),
+    ("don", "t", "remember"),
+)
+
+
+def unsure(text: str) -> bool:
+    """Whether a message says, somewhere in it, that the speaker does not know."""
+    words = _words(text)
+    for phrase in _UNSURE:
+        for start in range(len(words) - len(phrase) + 1):
+            if tuple(words[start : start + len(phrase)]) == phrase:
+                return True
+    return False
 
 #: Words that name nothing, on either side of the match.
 #:
@@ -272,10 +321,56 @@ class Catalogue:
 
 
 def side_in(text: str) -> Side | None:
-    """The side named in a phrase, if one is."""
-    for word in _words(text):
-        if word in _SIDES:
-            return _SIDES[word]
+    """The side named in a phrase, if one is, and only if it is not in doubt.
+
+    It used to be the first side word in the message, which the first run of
+    the golden calls showed to be wrong three ways, each of them booking the
+    knee somebody had said no to:
+
+      "not the left one" is the right one, not the left;
+      "the right one, no wait, left" is the left one, corrected;
+      "chest pain right now" names no side at all.
+
+    Two different sides with nothing between them that takes the first back
+    are not a side but a question, so the answer is none and the agent asks.
+    "Left and right" is both.
+    """
+    words = _words(text)
+    named: list[tuple[int, Side]] = []
+
+    for position, word in enumerate(words):
+        side = _SIDES.get(word)
+        if side is None:
+            continue
+        after = words[position + 1] if position + 1 < len(words) else ""
+        before = words[position - 1] if position else ""
+        if word == "right" and (after in _NOT_A_SIDE_AFTER or before in _NOT_A_SIDE_BEFORE):
+            continue
+
+        # "Not the left", "not left", "not my left": the side said no to. The
+        # other one, for a body part that comes in two; nothing, for both.
+        # Only right in front of the side: "not sure, left" is the left.
+        two_before = words[position - 2] if position > 1 else ""
+        if before == "not" or (two_before == "not" and before in ("the", "my")):
+            other = _OTHER.get(side)
+            if other is None:
+                return None
+            side = other
+        named.append((position, side))
+
+    if not named:
+        return None
+
+    sides = {side for _, side in named}
+    if len(sides) == 1:
+        return named[0][1]
+
+    first, last = named[0][0], named[-1][0]
+    between = set(words[first + 1 : last])
+    if between & _CORRECTIONS:
+        return named[-1][1]
+    if sides == {"left", "right"} and "and" in between:
+        return "both"
     return None
 
 
@@ -289,18 +384,40 @@ def contrast_in(text: str) -> bool | None:
     A refusal is read from the word in front, because that is where it is: "no
     contrast", "no-contrast" and "without contrast" are one request typed three
     ways, and all three leave the word "contrast" standing alone once the
-    hyphens are gone.
+    hyphens are gone. Prescription shorthand leaves it standing alone too, and
+    worse: "w/o contrast" is two letters in front of it, the o of without, and
+    was read as with. So is "contrast-free", where the refusal comes after.
+
+    Not knowing is not an answer either way. "Not sure about the contrast" is
+    none, and so is a message that corrects itself into two answers: the last
+    one said is the one meant.
     """
     words = _words(text)
+    if unsure(text):
+        return None
 
+    said: list[bool] = []
     for position, word in enumerate(words):
         if word in _PLAIN:
-            return False
-        if word in _CONTRAST:
-            before = words[position - 1] if position else ""
-            return before not in _REFUSALS
+            said.append(False)
+            continue
+        if word not in _CONTRAST:
+            continue
 
-    return None
+        before = words[position - 1] if position else ""
+        two_before = words[position - 2] if position > 1 else ""
+        after = words[position + 1] if position + 1 < len(words) else ""
+
+        if before in _REFUSALS or after in _REFUSED_AFTER:
+            said.append(False)
+        elif before == "o" and two_before == "w":
+            said.append(False)
+        else:
+            said.append(True)
+
+    if not said:
+        return None
+    return said[-1]
 
 
 def load(rows: Sequence[dict]) -> Catalogue:

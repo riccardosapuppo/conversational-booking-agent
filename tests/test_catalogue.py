@@ -142,6 +142,74 @@ class ReadingTheParts(unittest.TestCase):
         self.assertEqual(side_in("...right..."), "right")
 
 
+class TheWordsThatTurnADetailRound(unittest.TestCase):
+    """Found by the first run of the golden calls: each of these booked wrongly.
+
+    The side was the first side word in the message, and the contrast was read
+    from the one word in front of "contrast". Both are right for the sentences
+    the code was written against, and wrong for the ones on prescriptions and
+    in callers' mouths.
+    """
+
+    def test_not_the_left_one_is_the_right_one(self) -> None:
+        self.assertEqual(side_in("mri knee not the left one"), "right")
+        self.assertEqual(side_in("not left"), "right")
+        self.assertEqual(side_in("not my right knee"), "left")
+
+    def test_but_not_both_is_not_a_side_at_all(self) -> None:
+        self.assertIsNone(side_in("not both"))
+
+    def test_a_side_taken_back_is_the_one_after_it(self) -> None:
+        self.assertEqual(side_in("the right one, no wait, left"), "left")
+        self.assertEqual(side_in("left, sorry, I mean the right"), "right")
+
+    def test_two_sides_with_nothing_taking_either_back_is_a_question(self) -> None:
+        self.assertIsNone(side_in("left right"))
+        self.assertEqual(side_in("the left and the right knee"), "both")
+
+    def test_right_now_is_not_a_side(self) -> None:
+        # "I have chest pain right now" was a chest x-ray, the right one.
+        for said in ("chest pain right now", "right away please", "that's right", "all right"):
+            with self.subTest(said=said):
+                self.assertIsNone(side_in(said))
+
+    def test_a_request_form_writes_sides_short(self) -> None:
+        self.assertEqual(side_in("XR knee rt"), "right")
+        self.assertEqual(side_in("lt knee"), "left")
+        self.assertEqual(side_in("bilat knees"), "both")
+
+    def test_and_not_knowing_does_not_negate_the_side_said_after_it(self) -> None:
+        self.assertEqual(side_in("not sure, left"), "left")
+
+    def test_without_written_on_a_prescription(self) -> None:
+        # w/o is without. Read as with, it is the wrong scan.
+        self.assertIs(contrast_in("MRI knee left w/o contrast"), False)
+        self.assertIs(contrast_in("MRI L knee, w/ contrast"), True)
+
+    def test_a_refusal_that_comes_after_the_word(self) -> None:
+        self.assertIs(contrast_in("MRI whole spine contrast-free"), False)
+        self.assertIs(contrast_in("contrast free please"), False)
+
+    def test_not_knowing_about_the_contrast_is_not_an_answer_about_it(self) -> None:
+        for said in ("I'm not sure about the contrast", "I don't know about contrast", "no idea about the contrast"):
+            with self.subTest(said=said):
+                self.assertIsNone(contrast_in(said))
+
+    def test_the_last_answer_said_is_the_one_meant(self) -> None:
+        self.assertIs(contrast_in("with contrast, no wait, no contrast"), False)
+        self.assertIs(contrast_in("no contrast, actually with contrast"), True)
+
+    def test_what_counts_as_not_knowing(self) -> None:
+        from booking_agent.clinic.catalogue import unsure
+
+        for said in ("I don't know", "dont know", "I'm not sure", "no idea", "I can't remember"):
+            with self.subTest(said=said):
+                self.assertTrue(unsure(said))
+        for said in ("I know", "sure", "yes, the left one"):
+            with self.subTest(said=said):
+                self.assertFalse(unsure(said))
+
+
 class Loading(unittest.TestCase):
     def test_a_catalogue_is_built_from_plain_data(self) -> None:
         built = load(

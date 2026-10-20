@@ -245,6 +245,47 @@ class WhatShouldNotBeBookedAtAll(unittest.TestCase):
         self.assertIn("X-ray chest", talk.handover_note)
 
 
+class WhatIsBookedIsWhatWasSaid(unittest.TestCase):
+    """The diary afterwards, for the sentences the first golden run booked wrongly."""
+
+    def booked(self, *said: str):
+        book = diary()
+        one = agent(book)
+        talk = new("w")
+        for line in said:
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        return book.bookings()
+
+    def test_without_contrast_off_a_prescription(self) -> None:
+        bookings = self.booked("MRI knee left w/o contrast", "Anna Bianchi", "1", "yes")
+
+        self.assertEqual(len(bookings), 1)
+        self.assertIs(bookings[0].requests[0].contrast, False)
+
+    def test_the_knee_that_was_not_said_no_to(self) -> None:
+        bookings = self.booked("mri knee not the left one", "no contrast", "Anna Bianchi", "1", "yes")
+
+        self.assertEqual([request.side for request in bookings[0].requests], ["right"])
+
+    def test_a_side_corrected_while_the_time_is_read_back_lets_that_time_go(self) -> None:
+        book = diary()
+        one = agent(book)
+        talk = new("w2")
+
+        for line in ("mri knee left no contrast", "Anna Bianchi", "1"):
+            one.reply_to(talk, line, now=FRIDAY_BEFORE)
+        self.assertEqual(talk.stage, "confirming")
+
+        said = one.reply_to(talk, "sorry, I meant the right one", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.requests[0].side, "right")
+        self.assertEqual(talk.stage, "offering")
+        self.assertIn("1)", said)
+        # Nothing is held any more: the old time went back when new ones were read out.
+        self.assertIsNone(talk.hold)
+        self.assertEqual(book.taken(FRIDAY_BEFORE), [])
+
+
 class WhenTheSlotGoes(unittest.TestCase):
     def test_taken_between_offering_and_answering(self) -> None:
         book = diary()

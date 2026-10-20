@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from booking_agent.clinic.catalogue import Catalogue, Side, contrast_in, side_in
+from booking_agent.clinic.catalogue import Catalogue, Side, contrast_in, side_in, unsure
 
 Intent = Literal[
     "book",
@@ -187,8 +187,31 @@ _INFO = (
     "how do i get",
 )
 
-_AGREE = ("yes", "yeah", "yep", "sure", "ok", "okay", "fine", "perfect", "that one", "go ahead")
+_AGREE = (
+    "yes",
+    "yeah",
+    "yep",
+    "sure",
+    "ok",
+    "okay",
+    "fine",
+    "perfect",
+    "correct",
+    "that one",
+    "go ahead",
+    "that s right",
+    "thats right",
+)
 _REFUSE = ("no", "nope", "not that", "another", "something else", "different", "later")
+
+#: Agreeing with a no in it. Read before the refusals, which would otherwise
+#: take the no and turn "no problem" into a request for other times.
+_AGREE_ANYWAY = ("no problem", "no worries", "why not", "of course")
+
+#: What takes back something said a moment ago: "sorry, I meant without
+#: contrast", "no wait, no contrast", "make it the right one". A side or a
+#: contrast said with one of these is a correction, whatever was asked.
+_CORRECTING = ("no", "sorry", "actually", "wait", "meant", "mean", "rather", "instead", "make it")
 
 _BOOK = (
     "book",
@@ -278,6 +301,25 @@ def _first(text: str, markers: tuple[str, ...]) -> str:
     return ""
 
 
+def _yes_or_no(text: str) -> Literal["agree", "refuse"] | None:
+    """Whether a message agrees, refuses, or does neither.
+
+    Refusing is looked for before agreeing, because a message with both in it
+    is not a yes. "Not that one" contains "that one" and was read as agreeing
+    to it, which to "shall I book that?" books the time just turned down; the
+    direction it is safe to be wrong in is the one that asks again. A yes with
+    a "not" in it ("not ok", "that's not fine") is neither, and nor is one with
+    a "no" that is part of agreeing ("no problem"), which is read first.
+    """
+    if _has(text, _AGREE_ANYWAY):
+        return "agree"
+    if _has(text, _REFUSE):
+        return "refuse"
+    if _has(text, _AGREE) and "not" not in _tokens(text):
+        return "agree"
+    return None
+
+
 def _ordinal_in(text: str) -> int | None:
     """Which one they picked, said as a word or a bare number."""
     words = text.replace(",", " ").split()
@@ -331,6 +373,15 @@ class Rules:
         if _has(lowered, _OPERATOR):
             return Reading(intent="operator")
 
+        exam_text = self._exam_words(text)
+
+        # Not knowing, said as an answer. "I'm not sure" has the word "sure" in
+        # it and was read as a yes, which to "shall I book that?" is a booking
+        # nobody agreed to. With an exam in it, it is still worth reading the
+        # exam: "not sure, the MRI I think" has said which.
+        if unsure(text) and not exam_text:
+            return Reading(intent="unclear")
+
         # An answer to the question just asked.
         #
         # "Left" is a whole reply, and on its own it means nothing at all — it
@@ -354,10 +405,23 @@ class Rules:
             # "Yes" and "no" are answers to "with or without contrast?" too,
             # and only when that is the question: read here so that "no" is the
             # answer rather than turning something down.
-            if _has(lowered, _AGREE):
-                return Reading(intent="book", contrast=True)
-            if _has(lowered, _REFUSE):
-                return Reading(intent="book", contrast=False)
+            answer = _yes_or_no(lowered)
+            if answer is not None:
+                return Reading(intent="book", contrast=answer == "agree")
+
+        # A side or a contrast taking back one said a moment ago, whatever
+        # the question on the table was. Asked for a name, "no wait, no
+        # contrast" was taken as the name, four words long, and the booking
+        # went ahead with the contrast the caller had just turned down. While
+        # a name or nothing in particular is being asked, any side or contrast
+        # is news; while times are being read out or one is being confirmed, it
+        # has to come with something that takes the last answer back, or "yes,
+        # the left one" would stop being a yes.
+        if not exam_text and (expecting in ("patient", "") or _has(lowered, _CORRECTING)):
+            side = side_in(text)
+            wanted = contrast_in(text)
+            if side is not None or wanted is not None:
+                return Reading(intent="book", side=side, contrast=wanted)
 
         # A name, when a name is what was asked for. Only then: "Mario" in the
         # middle of a booking is not necessarily the patient.
@@ -369,8 +433,6 @@ class Rules:
         if _has(lowered, _MANAGE):
             return Reading(intent="manage")
 
-        exam_text = self._exam_words(text)
-
         # Picking one of the offered times. Only when something was offered:
         # "two" in "two exams" is not a choice of slot.
         if expecting == "slot":
@@ -378,10 +440,10 @@ class Rules:
             if which is not None:
                 return Reading(intent="choose", which=which)
 
-        if _has(lowered, _AGREE) and not exam_text:
-            return Reading(intent="agree")
-        if _has(lowered, _REFUSE) and not exam_text:
-            return Reading(intent="refuse")
+        if not exam_text:
+            answer = _yes_or_no(lowered)
+            if answer is not None:
+                return Reading(intent=answer)
 
         if exam_text:
             return Reading(
