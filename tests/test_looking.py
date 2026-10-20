@@ -312,7 +312,19 @@ class WhatTheButtonsPromise(unittest.TestCase):
                     self.fail(f'"{label}" expects {expected!r}, which this check does not know how to verify')
 
     def test_and_each_one_says_why_it_handed_over(self) -> None:
-        """A handover with no reason is a dead end rather than a handover."""
+        """A handover with no reason is a dead end rather than a handover.
+
+        The reasons are read off the agent's own closed set rather than copied
+        here. A copy was here, and it would have gone on agreeing with itself
+        the day a reason was added to the agent and not to it.
+        """
+        import typing
+
+        from booking_agent.conversation.state import Escalation
+
+        reasons = typing.get_args(Escalation)
+        self.assertIn("asked_for_a_person", reasons, "the closed set of reasons has moved")
+
         for says, expected, label in self.buttons():
             if expected != "handover":
                 continue
@@ -323,14 +335,7 @@ class WhatTheButtonsPromise(unittest.TestCase):
 
                 self.assertIn(
                     said["handed_over"],
-                    (
-                        "asked_for_a_person",
-                        "not_understood",
-                        "cannot_be_booked_here",
-                        "booking_failed",
-                        "caller_is_upset",
-                        "already_booked",
-                    ),
+                    reasons,
                     f'"{label}" handed over for a reason nothing knows about',
                 )
 

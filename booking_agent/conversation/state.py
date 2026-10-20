@@ -33,6 +33,13 @@ Escalation = Literal[
     #: others: the agent understood perfectly well and still cannot help,
     #: because it has no way to know the caller is who they say they are.
     "already_booked",
+    #: What the caller describes sounds like it cannot wait for a slot in a
+    #: diary: chest pain, not breathing, a bone that is broken.
+    "may_be_an_emergency",
+    #: Something about the caller that a clinician has to weigh before the
+    #: exam is booked: a pregnancy, kidneys and contrast, a pacemaker and a
+    #: magnet, a question about their medication.
+    "needs_a_clinician",
 ]
 
 Stage = Literal[
