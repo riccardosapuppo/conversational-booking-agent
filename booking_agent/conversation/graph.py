@@ -158,8 +158,38 @@ class Agent:
             why = "asked_for_a_person"
         elif reading.intent == "manage":
             why = "already_booked"
+        elif reading.intent == "urgent":
+            why = "may_be_an_emergency"
+        elif reading.intent == "clinical":
+            why = "needs_a_clinician"
 
-        conversation.hand_over(why, note=conversation.summary())
+        note = conversation.summary()
+        if reading.concern:
+            # In the caller's own words, because "they mentioned a pacemaker"
+            # is what the person picking up needs to read before hello.
+            note = f"{note}; they said: {reading.concern}"
+        conversation.hand_over(why, note=note)
+
+        if why == "may_be_an_emergency":
+            # Said first and said plainly. Everything after it is less
+            # important than the caller hearing it.
+            return {
+                **state,
+                "reply": (
+                    "That does not sound like something to wait for an appointment for. "
+                    "If this is an emergency, please hang up and call the emergency number now. "
+                    "I am putting you through to a colleague."
+                ),
+            }
+
+        if why == "needs_a_clinician":
+            return {
+                **state,
+                "reply": (
+                    "That is something a clinician needs to look at before anything is booked, "
+                    "so I am putting you through to a colleague and passing on what you said."
+                ),
+            }
 
         if why == "already_booked":
             return {
@@ -436,6 +466,12 @@ class Agent:
         """Where this turn goes. The whole flow of the agent, in one place."""
         conversation = state["conversation"]
         reading = state["reading"]
+
+        # Before everything, as the reader reads them before everything: what
+        # cannot wait and what a clinician has to see are not a stage of the
+        # booking, they are the end of it.
+        if reading.intent in ("urgent", "clinical"):
+            return "handover"
 
         if reading.intent == "operator":
             return "handover"

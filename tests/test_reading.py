@@ -62,6 +62,75 @@ class AskingForAPerson(unittest.TestCase):
         self.assertEqual(reader().read("no, I want a human").intent, "operator")
 
 
+class WhatCannotWait(unittest.TestCase):
+    """Read before anything else, because everything else can wait and this cannot."""
+
+    def test_however_it_is_said(self) -> None:
+        for said in (
+            "I have chest pain right now",
+            "I can't breathe properly",
+            "I can’t breathe",
+            "I think I've broken my arm",
+            "is this the emergency line",
+        ):
+            with self.subTest(said=said):
+                reading = reader().read(said)
+                self.assertEqual(reading.intent, "urgent")
+                self.assertTrue(reading.concern)
+
+    def test_even_when_a_name_or_a_side_was_what_was_asked_for(self) -> None:
+        # "Chest pain" is not somebody's name, and "right now" is not a side.
+        for expecting in ("patient", "side", "contrast", "slot", ""):
+            with self.subTest(expecting=expecting):
+                self.assertEqual(reader().read("chest pain right now", expecting=expecting).intent, "urgent")
+
+    def test_and_before_a_request_for_a_person(self) -> None:
+        # Both end with a person; only one of them is told to call the
+        # emergency number first.
+        self.assertEqual(reader().read("chest pain, put me through to someone").intent, "urgent")
+
+
+class WhatAClinicianHasToSee(unittest.TestCase):
+    def test_a_pregnancy_kidneys_an_allergy_a_pacemaker_medication(self) -> None:
+        for said, concern in (
+            ("I'm pregnant and need a chest x-ray", "pregnant"),
+            ("mri with contrast, I have kidney failure", "kidney failure"),
+            ("I'm allergic to the contrast dye", "allergic"),
+            ("I have a pacemaker, can I have an MRI", "pacemaker"),
+            ("should I stop taking my tablets before the scan", "tablets"),
+        ):
+            with self.subTest(said=said):
+                reading = reader().read(said)
+                self.assertEqual(reading.intent, "clinical")
+                self.assertEqual(reading.concern, concern)
+
+    def test_before_the_exam_it_comes_with_is_read(self) -> None:
+        # "An MRI, I have a pacemaker" is not an MRI booking with a remark
+        # attached; it is a question only a clinician can answer.
+        reading = reader().read("I have a pacemaker, can I book an MRI of the right knee")
+        self.assertEqual(reading.intent, "clinical")
+        self.assertFalse(reading.exam_text)
+
+    def test_and_a_kidney_on_its_own_is_not_a_kidney_problem(self) -> None:
+        self.assertNotEqual(reader().read("an ultrasound of my kidneys").intent, "clinical")
+
+
+class APhraseIsWordsInOrder(unittest.TestCase):
+    """Not letters in order, which is the substring mistake one size up."""
+
+    def test_need_a_is_not_found_inside_need_an(self) -> None:
+        from booking_agent.conversation.reading import _has
+
+        self.assertFalse(_has("i need another", ("need a",)))
+        self.assertTrue(_has("I need a scan", ("need a",)))
+
+    def test_and_punctuation_between_the_words_does_not_hide_them(self) -> None:
+        from booking_agent.conversation.reading import _has
+
+        self.assertTrue(_has("put me... through, please", ("put me through",)))
+        self.assertTrue(_has("I can’t breathe", ("can t breathe",)))
+
+
 class NamingAnExam(unittest.TestCase):
     def test_the_catalogue_decides_what_is_an_exam(self) -> None:
         # Nobody wrote the word "knee" into the reader. It knows because the

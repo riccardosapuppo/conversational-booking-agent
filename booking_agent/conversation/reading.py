@@ -33,6 +33,10 @@ Intent = Literal[
     "manage",
     "operator",
     "greeting",
+    #: Something that should not be waiting for a slot in a diary at all.
+    "urgent",
+    #: Something a clinician has to weigh before anything is booked.
+    "clinical",
     "unclear",
 ]
 
@@ -56,6 +60,10 @@ class Reading:
     #: A name, when the message is plainly a name and nothing else.
     name: str = ""
 
+    #: What was said that made it urgent or clinical, in the caller's words,
+    #: for the note the person taking over reads first.
+    concern: str = ""
+
     def __bool__(self) -> bool:
         return self.intent != "unclear"
 
@@ -68,15 +76,99 @@ class Reader(Protocol):
 
 # What people say, in the order the rules look for it. Order matters: somebody
 # who says "no, I want a person" is asking for a person, not refusing a slot.
+
+#: What cannot wait for a slot in a diary. Looked for before anything else,
+#: including a request for a person: both end with a person, and only one of
+#: them should be told to put the telephone down and call the emergency number.
+#:
+#: The first run of the golden calls is why this exists. "I have chest pain
+#: right now" was read as a request for a chest x-ray, the right one, and
+#: booked for Monday morning.
+_URGENT = (
+    "chest pain",
+    "chest pains",
+    "pain in my chest",
+    "can t breathe",
+    "cant breathe",
+    "cannot breathe",
+    "can not breathe",
+    "struggling to breathe",
+    "short of breath",
+    "difficulty breathing",
+    "trouble breathing",
+    "heart attack",
+    "stroke",
+    "unconscious",
+    "collapsed",
+    "fainted",
+    "bleeding",
+    "broken my",
+    "broke my",
+    "broken arm",
+    "broken leg",
+    "broken bone",
+    "fractured",
+    "severe pain",
+    "pain is really bad",
+    "pain is so bad",
+    "really bad pain",
+    "emergency",
+    "ambulance",
+)
+
+#: What a clinician has to weigh before an exam is booked: a pregnancy and
+#: radiation, kidneys and contrast, an allergy to contrast, a pacemaker and a
+#: magnet, a question about medication.
+#:
+#: Deliberately crude in one direction. "I'm not pregnant" hands over too, and
+#: that is a person spending a minute on a caller who did not need one; reading
+#: past "pregnant" because a "not" was near it is the same mistake made the
+#: other way round, and that one is an x-ray during a pregnancy.
+_CLINICAL = (
+    "pregnant",
+    "pregnancy",
+    "expecting a baby",
+    "breastfeeding",
+    "kidney failure",
+    "kidney disease",
+    "kidney problem",
+    "kidney problems",
+    "kidney transplant",
+    "renal",
+    "dialysis",
+    "allergic",
+    "allergy",
+    "allergies",
+    "reaction to contrast",
+    "reaction to the contrast",
+    "pacemaker",
+    "defibrillator",
+    "implant",
+    "implants",
+    "metal in my",
+    "metal plate",
+    "medication",
+    "medicine",
+    "tablets",
+    "pills",
+    "stop taking",
+    "blood thinners",
+    "insulin",
+)
+
 _OPERATOR = (
     "operator",
     "human",
     "person",
     "someone",
     "somebody",
+    "anyone",
+    "anybody",
     "receptionist",
     "speak to a",
+    "speak to an",
     "talk to a",
+    "talk to an",
     "put me through",
 )
 
@@ -98,7 +190,18 @@ _INFO = (
 _AGREE = ("yes", "yeah", "yep", "sure", "ok", "okay", "fine", "perfect", "that one", "go ahead")
 _REFUSE = ("no", "nope", "not that", "another", "something else", "different", "later")
 
-_BOOK = ("book", "appointment", "schedule", "when can", "availability", "slot", "need a", "want a")
+_BOOK = (
+    "book",
+    "appointment",
+    "schedule",
+    "when can",
+    "availability",
+    "slot",
+    "need a",
+    "need an",
+    "want a",
+    "want an",
+)
 
 _GREETING = ("hello", "hi", "good morning", "good afternoon", "good evening")
 
@@ -148,18 +251,31 @@ def _has(text: str, markers: tuple[str, ...]) -> bool:
     than by reading — which is the same mistake made in three other places in
     this portfolio, always by matching a short word inside a longer one.
 
-    A marker with a space in it is a phrase and is looked for as written.
+    A marker with a space in it is a phrase, and is looked for as the same
+    words in the same order. It used to be looked for as written, as letters,
+    which is the substring mistake one size up: "need a" was found inside
+    "need an", and "can't breathe" was not found in "can’t breathe" because
+    the apostrophe was the other one. Words in order are what a phrase is.
     """
-    words = set(_tokens(text))
+    return _first(text, markers) != ""
+
+
+def _first(text: str, markers: tuple[str, ...]) -> str:
+    """The first of these the message contains, as words; nothing if none."""
+    words = _tokens(text)
+    single = set(words)
 
     for marker in markers:
-        if " " in marker:
-            if marker in text:
-                return True
-        elif marker in words:
-            return True
+        wanted = marker.split()
+        if len(wanted) == 1:
+            if wanted[0] in single:
+                return marker
+            continue
+        for start in range(len(words) - len(wanted) + 1):
+            if words[start : start + len(wanted)] == wanted:
+                return marker
 
-    return False
+    return ""
 
 
 def _ordinal_in(text: str) -> int | None:
@@ -193,6 +309,21 @@ class Rules:
 
         if not lowered:
             return Reading(intent="unclear")
+
+        # What cannot wait, before anything else at all: before a name, before
+        # an exam, and before a request for a person, because both end with a
+        # person and only one of them should be told to call the emergency
+        # number first.
+        urgent = _first(lowered, _URGENT)
+        if urgent:
+            return Reading(intent="urgent", concern=urgent)
+
+        # Then what a clinician has to see. Before the exam is read, because
+        # "an MRI, I have a pacemaker" is not an MRI booking with a remark
+        # attached to it; it is a question only a clinician can answer.
+        clinical = _first(lowered, _CLINICAL)
+        if clinical:
+            return Reading(intent="clinical", concern=clinical)
 
         # Asked for a person, before anything else. Somebody saying "no, give
         # me a human" is not refusing a slot, and reading it as one is how an

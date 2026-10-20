@@ -204,6 +204,47 @@ class WhatCannotBeBookedHere(unittest.TestCase):
         self.assertIn("colleague", said.lower())
 
 
+class WhatShouldNotBeBookedAtAll(unittest.TestCase):
+    """Found by the first run of the golden calls, which booked every one of these."""
+
+    def test_chest_pain_is_told_to_call_the_emergency_number_and_nothing_is_booked(self) -> None:
+        book = diary()
+        one = agent(book)
+        talk = new("u1")
+
+        said = one.reply_to(talk, "I have chest pain right now", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.handed_over, "may_be_an_emergency")
+        self.assertIn("emergency number", said)
+        self.assertIn("chest pain", talk.handover_note)
+        self.assertEqual(book.bookings(), [])
+
+    def test_a_pacemaker_and_an_mri_go_to_somebody_who_can_weigh_them(self) -> None:
+        book = diary()
+        one = agent(book)
+        talk = new("u2")
+
+        for said in ("I have a pacemaker, can I book an MRI of the right knee without contrast", "Mario Rossi", "1", "yes"):
+            one.reply_to(talk, said, now=FRIDAY_BEFORE)
+            if talk.over:
+                break
+
+        self.assertEqual(talk.handed_over, "needs_a_clinician")
+        self.assertIn("pacemaker", talk.handover_note)
+        self.assertEqual(book.bookings(), [])
+
+    def test_and_so_does_a_pregnancy_mentioned_halfway_through(self) -> None:
+        one = agent()
+        talk = new("u3")
+
+        one.reply_to(talk, "chest x-ray", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "Anna Bianchi", now=FRIDAY_BEFORE)
+        one.reply_to(talk, "oh, I should say I'm pregnant", now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.handed_over, "needs_a_clinician")
+        self.assertIn("X-ray chest", talk.handover_note)
+
+
 class WhenTheSlotGoes(unittest.TestCase):
     def test_taken_between_offering_and_answering(self) -> None:
         book = diary()
