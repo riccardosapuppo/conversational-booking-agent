@@ -479,6 +479,11 @@ def contrast_in(text: str) -> bool | None:
     return None
 
 
+def contrast_mentioned(text: str) -> bool:
+    """Whether a message says anything about contrast, whatever it says."""
+    return any(word in _CONTRAST or word in _PLAIN for word in _words(text))
+
+
 def load(rows: Sequence[dict]) -> Catalogue:
     """A catalogue from plain data, as it is kept on disc."""
     return Catalogue(

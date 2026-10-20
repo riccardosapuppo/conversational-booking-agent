@@ -655,7 +655,7 @@ Three consequences worth naming:
 ## Checking it
 
 ```
-python -m unittest discover -s tests -t .   # 345 tests
+python -m unittest discover -s tests -t .   # 347 tests
 python -m tools.evals                       # the hundred golden calls, below
 python -m tools.transcripts                 # whole conversations
 python -m tools.transcripts --show          # and read them
@@ -678,7 +678,7 @@ readable in `index.html` would have caught that. Nor is there any way in Python
 to find out whether a page said anything out loud.
 [tests/test_console.py](tests/test_console.py) starts the service, opens the
 console in Edge and presses the buttons. Without Playwright and Edge it skips,
-which is worth saying out loud: **CI runs 329 of the 345**, and it will be green
+which is worth saying out loud: **CI runs 331 of the 347**, and it will be green
 on the day the console breaks that way again. All three of those figures are
 counted back out of the suite by [a test](tests/test_diagram.py), because a
 sentence admitting what is not checked is the last one that should be allowed
@@ -792,9 +792,12 @@ for somebody who had said left. "The left knee with no contrast and the right
 knee with no contrast" was the right knee alone, the no of "no contrast" read
 as taking the left one back. And the diary turned away real names made of
 words a sentence uses, "Said Ahmed" and "Can Yilmaz" among them. Correcting
-them found two more: "the left rather than the right" was the right knee, and
+them found three more: "the left rather than the right" was the right knee;
 "without", said to "with or without contrast?", was not understood, and the
-third time it was said the call went to a person. Each is a test now rather
+third time it was said the call went to a person; and "the left with contrast
+and the right without contrast" was read back as both knees without contrast,
+and booked on a yes. One request cannot hold that, so the contrast is asked
+for, and a third answer like it goes to a person. Each is a test now rather
 than a call: a call written once its answer is known measures nothing, and the
 hundred are a measurement.
 

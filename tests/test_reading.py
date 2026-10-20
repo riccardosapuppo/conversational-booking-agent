@@ -271,6 +271,13 @@ class TheQuestionsOwnWords(unittest.TestCase):
     def test_and_only_when_that_is_the_question(self) -> None:
         self.assertIsNone(reader().read("without", expecting="side").contrast)
 
+    def test_a_contrast_each_way_has_not_answered_it(self) -> None:
+        # One request cannot hold it. Read for the side alone, the question
+        # came back for as long as the caller said it.
+        reading = reader().read("the left with contrast and the right without contrast", expecting="contrast")
+
+        self.assertEqual(reading.intent, "unclear")
+
 
 class GivingAName(unittest.TestCase):
     def test_only_when_a_name_was_asked_for(self) -> None:

@@ -387,6 +387,20 @@ class AYesIsAYesToWhatWasReadBack(unittest.TestCase):
 
         self.assertEqual([(request.side, request.contrast) for request in book.bookings()[0].requests], [("left", False)])
 
+    def test_a_knee_each_way_is_not_booked_as_one_of_them(self) -> None:
+        # It was "MRI knee both without contrast", read back and booked on a
+        # yes, for a caller who had asked for contrast on the left.
+        book = diary()
+        one = agent(book)
+        talk = new("y2")
+
+        one.reply_to(talk, "mri knee, the left with contrast and the right without contrast", now=FRIDAY_BEFORE)
+        for _ in range(3):
+            one.reply_to(talk, "the left with contrast and the right without contrast", now=FRIDAY_BEFORE)
+
+        self.assertEqual(book.bookings(), [])
+        self.assertEqual(talk.handed_over, "not_understood")
+
     def test_but_a_yes_that_names_what_was_read_back_books_it(self) -> None:
         for said in ("yes, the left one", "yes please, without contrast"):
             with self.subTest(said=said):

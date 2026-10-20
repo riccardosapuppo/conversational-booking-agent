@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from booking_agent.clinic.catalogue import Catalogue, Side, contrast_in, side_in, unsure
+from booking_agent.clinic.catalogue import Catalogue, Side, contrast_in, contrast_mentioned, side_in, unsure
 from booking_agent.clinic.names import plausible_name
 
 Intent = Literal[
@@ -441,6 +441,14 @@ class Rules:
         # asking about the contrast a moment later and hearing the caller
         # repeat themselves. Answering more than you were asked is normal; an
         # agent that only hears its own question is a form being read out.
+        # Asked about the contrast, an answer that names it two ways, with
+        # nothing taking the first back, has not answered: "the left with
+        # contrast and the right without" cannot be one request. Read for the
+        # side alone, the question came back for as long as the caller said
+        # it; not understood, the third time is a person.
+        if expecting == "contrast" and contrast_in(text) is None and contrast_mentioned(text):
+            return Reading(intent="unclear")
+
         if expecting in ("side", "contrast"):
             side = side_in(text)
             wanted = contrast_in(text)
