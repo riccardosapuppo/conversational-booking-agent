@@ -89,6 +89,12 @@ _URGENT = (
     "chest pain",
     "chest pains",
     "pain in my chest",
+    # Chest pain in the other words people use for it, found missing by a
+    # call written after this list to test it, which was booked a chest x-ray.
+    "chest hurts",
+    "chest is hurting",
+    "chest feels tight",
+    "dizzy",
     "can t breathe",
     "cant breathe",
     "cannot breathe",
@@ -439,9 +445,13 @@ class Rules:
         # "yes", a tax code and "I'd rather not say" were all booked under once,
         # by the rule that anything of four words or fewer was a name. The rule
         # is the diary's own now, so nothing can be booked under what it refuses.
+        # Nor the name of an exam: asked for a name, "abdomen" is the caller
+        # saying which ultrasound, and it was booked as the patient's name. The
+        # catalogue knows its own words, so this is the catalogue's answer
+        # rather than another list here.
         if expecting == "patient":
             name = text.strip().rstrip(".")
-            if plausible_name(name):
+            if plausible_name(name) and not exam_text:
                 return Reading(intent="book", name=name)
 
         if _has(lowered, _MANAGE):

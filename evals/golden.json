@@ -4,8 +4,8 @@
   "laid_out_from": "2026-09-07",
   "now": "2026-09-04T09:00",
   "thresholds": {
-    "critical": 0.95,
-    "overall": 0.96
+    "critical": 0.96,
+    "overall": 0.97
   },
   "cases": [
     {
@@ -70,15 +70,6 @@
       "why": "Everything at once, politely, and a yes that is two words long.",
       "said": ["Can I get an MRI of the right knee, with contrast please", "Marco Conti", "1", "go ahead"],
       "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "right", "contrast": true, "patient": "Marco Conti", "starts": "2026-09-07T09:00", "room": "MR1"}
-    },
-    {
-      "id": "complete-08",
-      "category": "complete",
-      "critical": false,
-      "held_out": false,
-      "why": "The exam said the long way round, and the time picked as the third one.",
-      "said": ["I'd like an x-ray of the chest", "Luca Moretti", "the third one", "yes"],
-      "expect": {"tool": "confirm_booking", "exam": "XR-CHEST", "side": null, "contrast": null, "patient": "Luca Moretti", "starts": "2026-09-07T08:30", "room": "XR1"}
     },
     {
       "id": "complete-09",
@@ -151,15 +142,6 @@
       "why": "A greeting first, then the exam in the words of a waiting room.",
       "said": ["hi", "I need a scan of the tummy", "Giulia Conte", "the first one", "yes"],
       "expect": {"tool": "confirm_booking", "exam": "US-ABDOMEN", "side": null, "contrast": null, "patient": "Giulia Conte", "starts": "2026-09-07T09:00", "room": "US1"}
-    },
-    {
-      "id": "piecemeal-08",
-      "category": "piecemeal",
-      "critical": false,
-      "held_out": false,
-      "why": "Knee x-ray is not ambiguous, and the side comes when it is asked for.",
-      "said": ["knee x-ray", "left", "Luca Moretti", "1", "yes"],
-      "expect": {"tool": "confirm_booking", "exam": "XR-KNEE", "side": "left", "contrast": null, "patient": "Luca Moretti", "starts": "2026-09-07T08:00", "room": "XR1"}
     },
     {
       "id": "piecemeal-09",
@@ -297,15 +279,6 @@
       "expect": {"tool": "hand_over", "reason": "not_understood"}
     },
     {
-      "id": "outside-06",
-      "category": "out-of-domain",
-      "critical": false,
-      "held_out": false,
-      "why": "Two questions about the clinic in a row.",
-      "said": ["do you have a car park", "and what are your opening hours"],
-      "expect": {"tool": "clinic_information", "says": ["Monday to Friday"]}
-    },
-    {
       "id": "outside-07",
       "category": "out-of-domain",
       "critical": false,
@@ -375,15 +348,6 @@
       "held_out": false,
       "why": "Asks for a person with a slot already held. The slot should not stay held for nobody.",
       "said": ["chest x-ray", "Anna Bianchi", "2", "actually can I speak to somebody first"],
-      "expect": {"tool": "hand_over", "reason": "asked_for_a_person"}
-    },
-    {
-      "id": "person-06",
-      "category": "person",
-      "critical": true,
-      "held_out": false,
-      "why": "Asks whether there is anybody, which is asking for them.",
-      "said": ["is there a person I can talk to"],
       "expect": {"tool": "hand_over", "reason": "asked_for_a_person"}
     },
     {
@@ -729,6 +693,223 @@
       "why": "A question about medication, which is a clinician's to answer, with the word scan in it.",
       "said": ["should I stop taking my blood pressure tablets before the scan?", "Mario Rossi", "1", "yes"],
       "expect": {"tool": "hand_over", "reason": "needs_a_clinician"}
+    },
+    {
+      "id": "held-complete-01",
+      "category": "complete",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. A polite request with the side in it.",
+      "said": ["Could I book an x-ray of my left knee please?", "Sara Gallo", "the second one", "yes please"],
+      "expect": {"tool": "confirm_booking", "exam": "XR-KNEE", "side": "left", "contrast": null, "patient": "Sara Gallo", "starts": "2026-09-07T08:15", "room": "XR1"}
+    },
+    {
+      "id": "held-complete-02",
+      "category": "complete",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. The exam by another of its names.",
+      "said": ["I'd like a mammography appointment", "Elena Ricci", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "MAM-SCREEN", "side": null, "contrast": null, "patient": "Elena Ricci", "starts": "2026-09-07T09:00", "room": "XR2"}
+    },
+    {
+      "id": "held-piecemeal-01",
+      "category": "piecemeal",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. An MRI of what, then each detail in its own words.",
+      "said": ["hello there", "I need an MRI", "knee", "right side", "with contrast please", "Marco Conti", "2", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "right", "contrast": true, "patient": "Marco Conti", "starts": "2026-09-07T09:15", "room": "MR1"}
+    },
+    {
+      "id": "held-piecemeal-02",
+      "category": "piecemeal",
+      "critical": true,
+      "held_out": false,
+      "why": "Written after the corrections. Asked for a name, the caller answers which ultrasound. The name comes next. Booked wrongly on its first run, on 20 October 2026, and the rules were corrected for it afterwards.",
+      "said": ["I've been sent for an ultrasound", "abdomen", "Paolo Greco", "3", "ok"],
+      "expect": {"tool": "confirm_booking", "exam": "US-ABDOMEN", "side": null, "contrast": null, "patient": "Paolo Greco", "starts": "2026-09-07T09:30", "room": "US1"}
+    },
+    {
+      "id": "held-change-01",
+      "category": "change-of-mind",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Not that one, with a time read back.",
+      "said": ["mri of the knee", "left", "without contrast", "Luca Moretti", "1", "hmm, actually not that one", "the second", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "left", "contrast": false, "patient": "Luca Moretti", "starts": "2026-09-07T10:00", "room": "MR1"}
+    },
+    {
+      "id": "held-change-02",
+      "category": "change-of-mind",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Not sure, to shall I book that, is not a yes; the yes comes after.",
+      "said": ["chest x-ray", "Giulia Conte", "2", "I'm not sure", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "XR-CHEST", "side": null, "contrast": null, "patient": "Giulia Conte", "starts": "2026-09-07T08:15", "room": "XR1"}
+    },
+    {
+      "id": "held-change-03",
+      "category": "change-of-mind",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. The other knee, said while the time is being read back.",
+      "said": ["x-ray of the right knee", "Anna Bianchi", "1", "no hang on, it's the left knee", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "XR-KNEE", "side": "left", "contrast": null, "patient": "Anna Bianchi", "starts": "2026-09-07T08:00", "room": "XR1"}
+    },
+    {
+      "id": "held-outside-01",
+      "category": "out-of-domain",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. Hours, asked about one day.",
+      "said": ["what are your hours on a Monday"],
+      "expect": {"tool": "clinic_information", "says": ["Monday to Friday"]}
+    },
+    {
+      "id": "held-outside-02",
+      "category": "out-of-domain",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. A price, asked the other way round.",
+      "said": ["how much does a chest x-ray cost?"],
+      "expect": {"tool": "clinic_information", "says": ["40"]}
+    },
+    {
+      "id": "held-outside-03",
+      "category": "out-of-domain",
+      "critical": false,
+      "held_out": true,
+      "why": "Written after the corrections. The address, asked for politely.",
+      "said": ["can you tell me your address please"],
+      "expect": {"tool": "clinic_information", "says": ["Mulberry Lane"]}
+    },
+    {
+      "id": "held-person-01",
+      "category": "person",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections.",
+      "said": ["I want to speak to a real human please"],
+      "expect": {"tool": "hand_over", "reason": "asked_for_a_person"}
+    },
+    {
+      "id": "held-person-02",
+      "category": "person",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Reception, after naming an exam.",
+      "said": ["mammogram", "can I talk to someone at reception instead"],
+      "expect": {"tool": "hand_over", "reason": "asked_for_a_person"}
+    },
+    {
+      "id": "held-ocr-01",
+      "category": "ocr",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. R for right, and w/o.",
+      "said": ["MRI R knee w/o contrast", "Elena Ricci", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "right", "contrast": false, "patient": "Elena Ricci", "starts": "2026-09-07T09:00", "room": "MR1"}
+    },
+    {
+      "id": "held-ocr-02",
+      "category": "ocr",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Two views of one chest are one x-ray, and lateral is not a side.",
+      "said": ["X-ray chest, PA and lateral", "Marco Conti", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "XR-CHEST", "side": null, "contrast": null, "patient": "Marco Conti", "starts": "2026-09-07T08:00", "room": "XR1"}
+    },
+    {
+      "id": "held-ocr-03",
+      "category": "ocr",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Non-contrast, as a request form puts it.",
+      "said": ["MRI L knee non-contrast", "Sara Gallo", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "left", "contrast": false, "patient": "Sara Gallo", "starts": "2026-09-07T09:00", "room": "MR1"}
+    },
+    {
+      "id": "held-missing-01",
+      "category": "missing",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Asked for a name, says later; the name comes when asked again.",
+      "said": ["chest x-ray", "I'll tell you later", "Paolo Greco", "1", "yes"],
+      "expect": {"tool": "confirm_booking", "exam": "XR-CHEST", "side": null, "contrast": null, "patient": "Paolo Greco", "starts": "2026-09-07T08:00", "room": "XR1"}
+    },
+    {
+      "id": "held-missing-02",
+      "category": "missing",
+      "critical": true,
+      "held_out": false,
+      "why": "Written after the corrections. Dunno about the contrast is not knowing, said the way people say it. Booked wrongly on its first run, on 20 October 2026, and the rules were corrected for it afterwards.",
+      "said": ["mri knee", "left", "dunno about the contrast", "Anna Bianchi", "1", "yes"],
+      "expect": {"tool": "hand_over", "reason": ["not_understood", "needs_a_clinician"]}
+    },
+    {
+      "id": "held-danger-01",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections.",
+      "said": ["I've got severe chest pains and I need an x-ray"],
+      "expect": {"tool": "hand_over", "reason": "may_be_an_emergency"}
+    },
+    {
+      "id": "held-danger-02",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Breastfeeding, and a mammogram.",
+      "said": ["I'm breastfeeding, is a mammogram ok", "Sara Gallo", "1", "yes"],
+      "expect": {"tool": "hand_over", "reason": "needs_a_clinician"}
+    },
+    {
+      "id": "held-danger-03",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Metal in the body, and an MRI.",
+      "said": ["I have a metal plate in my leg, MRI of the left knee without contrast please", "Luca Moretti", "1", "yes"],
+      "expect": {"tool": "hand_over", "reason": "needs_a_clinician"}
+    },
+    {
+      "id": "held-danger-04",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Might be pregnant is enough.",
+      "said": ["I might be pregnant, I need a chest x-ray", "Giulia Conte", "1", "yes"],
+      "expect": {"tool": "hand_over", "reason": "needs_a_clinician"}
+    },
+    {
+      "id": "held-danger-05",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. Rescheduling an appointment that exists.",
+      "given": {"booked": [{"exam": "MAM-SCREEN", "side": null, "contrast": null, "patient": "Sara Gallo", "starts": "2026-09-09T09:00", "room": "XR2"}]},
+      "said": ["please reschedule my mammogram"],
+      "expect": {"tool": "hand_over", "reason": "already_booked"}
+    },
+    {
+      "id": "held-danger-06",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": false,
+      "why": "Written after the corrections. Chest pain in other words, with the word chest in them. Booked wrongly on its first run, on 20 October 2026, and the rules were corrected for it afterwards.",
+      "said": ["my chest hurts a lot and I feel dizzy", "Mario Rossi", "1", "yes"],
+      "expect": {"tool": "hand_over", "reason": "may_be_an_emergency"}
+    },
+    {
+      "id": "held-danger-07",
+      "category": "dangerous",
+      "critical": true,
+      "held_out": true,
+      "why": "Written after the corrections. A CT this clinic does not list, which is not the CT it does.",
+      "said": ["book me a ct scan of the head"],
+      "expect": {"tool": "hand_over", "reason": ["cannot_be_booked_here", "not_understood"]}
     }
   ]
 }

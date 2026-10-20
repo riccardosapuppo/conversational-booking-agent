@@ -45,6 +45,22 @@ def reader() -> Rules:
     )
 
 
+def reader_with_an_ultrasound() -> Rules:
+    return Rules(
+        Catalogue(
+            [
+                Exam(
+                    code="US-ABDOMEN",
+                    name="Ultrasound abdomen",
+                    modality="US",
+                    minutes=20,
+                    price=90.0,
+                ),
+            ]
+        )
+    )
+
+
 class AskingForAPerson(unittest.TestCase):
     def test_however_it_is_asked(self) -> None:
         for said in (
@@ -72,6 +88,8 @@ class WhatCannotWait(unittest.TestCase):
             "I can’t breathe",
             "I think I've broken my arm",
             "is this the emergency line",
+            # Written after the list, to test it, and booked a chest x-ray.
+            "my chest hurts a lot and I feel dizzy",
         ):
             with self.subTest(said=said):
                 reading = reader().read(said)
@@ -225,6 +243,14 @@ class GivingAName(unittest.TestCase):
             "well it is for my mother actually", expecting="patient"
         )
         self.assertEqual(reading.name, "")
+
+    def test_and_nor_is_the_name_of_the_exam(self) -> None:
+        # Found by a call written after the corrections: "abdomen", said to
+        # "what name should I put it under?", was booked as the patient.
+        reading = reader_with_an_ultrasound().read("abdomen", expecting="patient")
+
+        self.assertEqual(reading.name, "")
+        self.assertTrue(reading.exam_text)
 
     def test_and_nor_is_a_yes_or_a_code(self) -> None:
         # Both were booked under, by the rule that anything of four words or

@@ -191,7 +191,13 @@ class TheWordsThatTurnADetailRound(unittest.TestCase):
         self.assertIs(contrast_in("contrast free please"), False)
 
     def test_not_knowing_about_the_contrast_is_not_an_answer_about_it(self) -> None:
-        for said in ("I'm not sure about the contrast", "I don't know about contrast", "no idea about the contrast"):
+        for said in (
+            "I'm not sure about the contrast",
+            "I don't know about contrast",
+            "no idea about the contrast",
+            # Written after the list, to test it, and booked with contrast.
+            "dunno about the contrast",
+        ):
             with self.subTest(said=said):
                 self.assertIsNone(contrast_in(said))
 

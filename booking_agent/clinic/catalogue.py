@@ -79,6 +79,11 @@ _UNSURE = (
     ("can", "t", "remember"),
     ("cant", "remember"),
     ("don", "t", "remember"),
+    # Added after the calls written to test the list found "dunno" missing
+    # from it, and with it a booking with contrast nobody had asked for.
+    ("dunno",),
+    ("no", "clue"),
+    ("not", "a", "clue"),
 )
 
 
