@@ -481,17 +481,34 @@ class Agent:
             return "clarify"
         return "offer"
 
+    @staticmethod
+    def _noted(name: str, node):
+        """A node that writes its own name on the conversation, then runs.
+
+        Wrapped here rather than written into every node, so a node added
+        tomorrow is in the record without anybody remembering to put it there.
+        """
+
+        def run(state: Turn) -> Turn:
+            state["conversation"].moves.append(name)
+            return node(state)
+
+        return run
+
     def _build(self) -> Any:
         graph: StateGraph = StateGraph(Turn)
 
         graph.add_node("understand", self._understand)
-        graph.add_node("clarify", self._clarify)
-        graph.add_node("offer", self._offer)
-        graph.add_node("hold", self._hold)
-        graph.add_node("book", self._book)
-        graph.add_node("another", self._another)
-        graph.add_node("answer", self._answer)
-        graph.add_node("handover", self._handover)
+        for name, node in (
+            ("clarify", self._clarify),
+            ("offer", self._offer),
+            ("hold", self._hold),
+            ("book", self._book),
+            ("another", self._another),
+            ("answer", self._answer),
+            ("handover", self._handover),
+        ):
+            graph.add_node(name, self._noted(name, node))
 
         graph.add_edge(START, "understand")
         graph.add_conditional_edges(

@@ -97,6 +97,13 @@ class Conversation:
     #: same question four times is one a person should have taken over from.
     stalled_turns: int = 0
 
+    #: Where each turn went, by the name of the node that answered it: what
+    #: the agent did, as opposed to what it said. Kept because the two are
+    #: easy to confuse from outside. "What time do you open?" and "mmh" both
+    #: end with the agent asking something back and nothing pending, and only
+    #: one of them was answered.
+    moves: list[str] = field(default_factory=list)
+
     def said(self, who: Literal["caller", "agent"], text: str) -> None:
         self.messages.append(Message(who=who, text=text))
 

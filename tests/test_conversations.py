@@ -110,6 +110,22 @@ class ABookingFromStartToFinish(unittest.TestCase):
         self.assertEqual(talk.booking.exam_codes, ("MRI-KNEE",))
         self.assertEqual(talk.booking.patient, "Mario Rossi")
 
+    def test_and_what_it_did_is_written_down_turn_by_turn(self) -> None:
+        # What the agent did, as opposed to what it said: one node per turn,
+        # in order, so a check can tell an answered question from a question
+        # asked back without reading the wording of either.
+        one = agent()
+        talk = new("s1b")
+
+        for said in ("hello", "I need an MRI of the left knee without contrast", "Mario Rossi", "the first one", "yes"):
+            one.reply_to(talk, said, now=FRIDAY_BEFORE)
+
+        self.assertEqual(talk.moves, ["clarify", "clarify", "offer", "hold", "book"])
+
+        asked = new("s1c")
+        one.reply_to(asked, "what time do you open", now=FRIDAY_BEFORE)
+        self.assertEqual(asked.moves, ["answer"])
+
     def test_the_slot_really_leaves_the_diary(self) -> None:
         book = diary()
         one = agent(book)
