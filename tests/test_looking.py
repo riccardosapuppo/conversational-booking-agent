@@ -10,7 +10,7 @@ booking in, and that nothing among them can book anything.
 from __future__ import annotations
 
 import unittest
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi.testclient import TestClient
 
@@ -18,17 +18,36 @@ from booking_agent.clinic.build import default
 from booking_agent.conversation.reading import Reading, Rules
 from booking_agent.service.api import build
 
+#: The Monday every clinic in this file is laid out from, and the moment the
+#: clocks here are stopped at: eight o'clock on that Monday.
+#:
+#: Two dates, and for a while only one of them was fixed. The clock was stopped
+#: at a Monday in September while the diary was still laid out from whatever day
+#: the tests happened to run, so from three weeks after that Monday the diary
+#: these tests looked at had no sessions in it at all. Two of them went red
+#: without a line of the repository changing, and a third went on passing for
+#: the wrong reason: a reader that understands nothing books nothing, and so
+#: does a reader that understands everything when the diary is empty.
+MONDAY = date(2026, 9, 7)
+EIGHT_ON_MONDAY = datetime(2026, 9, 7, 8, 0)
+
+
+def clinic():
+    """The clinic that ships with this, laid out from the Monday the clock is on."""
+    return default(starting=MONDAY)
+
 
 class LookingAtTheClinic(unittest.TestCase):
     """What a screen is told about the clinic."""
 
     def setUp(self) -> None:
-        self.clinic = default()
+        self.clinic = clinic()
 
         # A fixed moment, and a Monday morning. A test that asks a diary what
         # is free "now" is a test that passes on the day it was written and
-        # fails on a Sunday.
-        self.now = datetime(2026, 9, 7, 8, 0)
+        # fails on a Sunday. The diary is laid out from the same Monday, or the
+        # moment is fixed and the week it falls in is not.
+        self.now = EIGHT_ON_MONDAY
         self.client = TestClient(build(self.clinic, clock=lambda: self.now))
 
     def test_says_who_the_clinic_is_in_the_agents_own_words(self) -> None:
@@ -140,7 +159,7 @@ class TheConsole(unittest.TestCase):
     """That the page is served at all, and served before the API."""
 
     def setUp(self) -> None:
-        self.client = TestClient(build(default(), clock=lambda: datetime(2026, 9, 7, 8, 0)))
+        self.client = TestClient(build(clinic(), clock=lambda: EIGHT_ON_MONDAY))
 
     def test_the_page_is_served_at_the_root(self) -> None:
         response = self.client.get("/")
@@ -247,7 +266,7 @@ class WhatTheButtonsPromise(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.client = TestClient(build(default(), clock=lambda: datetime(2026, 9, 7, 8, 0)))
+        self.client = TestClient(build(clinic(), clock=lambda: EIGHT_ON_MONDAY))
 
     def buttons(self) -> list[tuple[str, str, str]]:
         import re
@@ -324,7 +343,7 @@ class WhatIsReading(unittest.TestCase):
     """
 
     def reading(self, **built) -> dict:
-        client = TestClient(build(default(), clock=lambda: datetime(2026, 9, 7, 8, 0), **built))
+        client = TestClient(build(clinic(), clock=lambda: EIGHT_ON_MONDAY, **built))
         return client.get("/reading").json()
 
     def test_it_names_the_reader_the_service_actually_built(self) -> None:
@@ -351,20 +370,26 @@ class WhatIsReading(unittest.TestCase):
     def test_and_the_named_reader_is_the_one_the_conversation_goes_through(self) -> None:
         """Otherwise the strip is decoration: true, and about nothing.
 
-        The same six sentences that book an appointment through the rules book
+        The same five sentences that book an appointment through the rules book
         nothing at all through a reader that understands none of them — which
         is what makes swapping one in a change of behaviour rather than a
         change of label.
+
+        Both halves are run, because the second one alone proves nothing: an
+        empty diary also books nothing, whoever is reading. It did, for three
+        weeks, while this test went on passing.
         """
-        client = TestClient(
-            build(default(), reader=CatchesNothing(), clock=lambda: datetime(2026, 9, 7, 8, 0))
-        )
+        said = ("MRI knee", "left, no contrast", "Anna Bianchi", "the first", "yes")
 
-        call = client.post("/calls", json={"channel": "chat"}).json()["call"]
-        for words in ("MRI knee", "left, no contrast", "Anna Bianchi", "the first", "yes"):
-            client.post(f"/calls/{call}/said", json={"text": words})
+        def booked_through(reader) -> list:
+            client = TestClient(build(clinic(), reader=reader, clock=lambda: EIGHT_ON_MONDAY))
+            call = client.post("/calls", json={"channel": "chat"}).json()["call"]
+            for words in said:
+                client.post(f"/calls/{call}/said", json={"text": words})
+            return client.get("/bookings").json()["bookings"]
 
-        self.assertEqual(client.get("/bookings").json()["bookings"], [])
+        self.assertEqual(len(booked_through(None)), 1, "the rules no longer book these sentences at all")
+        self.assertEqual(booked_through(CatchesNothing()), [])
 
 
 class CatchesNothing:
