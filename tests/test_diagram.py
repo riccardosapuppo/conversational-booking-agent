@@ -180,6 +180,66 @@ class WhatTheReadmeSaysAboutItself(unittest.TestCase):
         self.assertEqual((int(now.group(5)), int(now.group(6))), (summary.critical.passed, summary.critical.calls))
         self.assertEqual((int(now.group(7)), int(now.group(8))), (summary.held_out.passed, summary.held_out.calls))
 
+    def test_the_figures_for_the_model_are_the_ones_it_was_recorded_giving(self) -> None:
+        """The model's figures, against the run CI replays, which is the run they came from.
+
+        Not against a fresh run: there is no model here. The replay is checked
+        against the same recording by its own test, so the three agree or one
+        of them fails.
+        """
+        import json
+
+        prose = " ".join(readme().split())
+        # "held out" without the "still" of the rules' sentence, which is how
+        # the two are told apart.
+        said = re.search(
+            r"with ([\w.:-]+) \([^)]*\) through Ollama [\d.]+, [^*]*\*\*(\d+) of (\d+) pass, (\d+) miss and (\w+) do harm\*\*; "
+            r"\*\*(\d+) of the (\d+) critical\*\* pass; and \*\*(\d+) of the (\d+) held out\*\* pass",
+            prose,
+        )
+        assert said is not None, "the README no longer says how the model did"
+
+        here = Path(__file__).resolve().parents[1]
+        model = said.group(1)
+        recorded = json.loads((here / "evals" / "models" / f"{model.replace(':', '-')}.json").read_text(encoding="utf-8"))
+        totals = recorded["totals"]
+        harm = 0 if said.group(5) == "none" else int(said.group(5))
+
+        self.assertEqual(recorded["model"]["model"], model)
+        self.assertIn(f"through Ollama {recorded['model']['ollama']},", prose)
+        self.assertIn(f"digest `{recorded['model']['digest'][:12]}`", prose)
+        self.assertEqual(
+            (int(said.group(2)), int(said.group(3)), int(said.group(4)), harm),
+            (totals["all"]["passed"], totals["all"]["calls"], totals["all"]["missed"], totals["all"]["harmed"]),
+        )
+        self.assertEqual((int(said.group(6)), int(said.group(7))), (totals["critical"]["passed"], totals["critical"]["calls"]))
+        self.assertEqual((int(said.group(8)), int(said.group(9))), (totals["held_out"]["passed"], totals["held_out"]["calls"]))
+
+    def test_and_so_is_the_table_of_them_beside_the_rules(self) -> None:
+        # Every cell a measurement: the rules' column from a run made now, the
+        # model's from the recording.
+        import json
+
+        from tools.evals import CATEGORIES, load, run_all, summarise
+
+        rows = dict(
+            (name, tuple(int(cell) for cell in cells.split(" | ")))
+            for name, cells in re.findall(r"^\| ([a-z-]+) \| (\d+ \| \d+ \| \d+ \| \d+ \| \d+) \|$", readme(), re.MULTILINE)
+        )
+        self.assertEqual(set(rows), set(CATEGORIES), "the table no longer has a row for every kind of call")
+
+        golden = load()
+        rules = summarise(run_all(golden), golden).by_category
+        here = Path(__file__).resolve().parents[1]
+        model = json.loads((here / "evals" / "models" / "qwen2.5-3b.json").read_text(encoding="utf-8"))["totals"]["by_category"]
+
+        for name, cells in rows.items():
+            with self.subTest(kind=name):
+                self.assertEqual(
+                    cells,
+                    (rules[name].calls, rules[name].passed, model[name]["passed"], model[name]["missed"], model[name]["harmed"]),
+                )
+
     def test_the_production_reconstruction_section_is_word_for_word_what_it_was(self) -> None:
         # Kept identical on purpose, whatever is added around it: it is the
         # statement of what this repository is, and it is not edited in

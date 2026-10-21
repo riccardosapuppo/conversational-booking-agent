@@ -1,0 +1,234 @@
+{
+ "about": "The sentences the prompt in booking_agent/model/reader.py was written against, with what each should be read as: written for it, none of them a line of the golden calls, which a test checks. The golden calls were run through the model once, after the prompt was finished, and no line of theirs was used to write it. python -m tools.evals --ollama --development reads these again.",
+ "sentences": [
+  {
+   "said": "good afternoon, I would like to arrange a scan of my right knee, MRI please",
+   "expecting": "",
+   "reads": {
+    "intent": "book",
+    "exam": "MRI-KNEE",
+    "side": "right"
+   }
+  },
+  {
+   "said": "could I get a chest radiograph booked in",
+   "expecting": "",
+   "reads": {
+    "intent": "book",
+    "exam": "XR-CHEST"
+   }
+  },
+  {
+   "said": "an ultrasound of my tummy, my GP sent me",
+   "expecting": "",
+   "reads": {
+    "intent": "book",
+    "exam": "US-ABDOMEN"
+   }
+  },
+  {
+   "said": "spine MRI, with gadolinium",
+   "expecting": "",
+   "reads": {
+    "intent": "book",
+    "exam": "MRI-SPINE",
+    "contrast": true
+   }
+  },
+  {
+   "said": "I need something done on my knee",
+   "expecting": "",
+   "reads": {
+    "intent": "book",
+    "exam": null
+   }
+  },
+  {
+   "said": "how much would a mammogram set me back",
+   "expecting": "",
+   "reads": {
+    "intent": "info",
+    "exam": "MAM-SCREEN"
+   }
+  },
+  {
+   "said": "what time do you shut on a Friday",
+   "expecting": "",
+   "reads": {
+    "intent": "info"
+   }
+  },
+  {
+   "said": "can I bring my husband with me",
+   "expecting": "",
+   "reads": {
+    "intent": "info"
+   }
+  },
+  {
+   "said": "I have to cancel what I booked for next week",
+   "expecting": "",
+   "reads": {
+    "intent": "manage"
+   }
+  },
+  {
+   "said": "could you put me through to the front desk",
+   "expecting": "",
+   "reads": {
+    "intent": "operator"
+   }
+  },
+  {
+   "said": "I might be expecting, is an x-ray still ok",
+   "expecting": "",
+   "reads": {
+    "intent": "clinical"
+   }
+  },
+  {
+   "said": "I came off my bike and I think my wrist has snapped",
+   "expecting": "",
+   "reads": {
+    "intent": "urgent"
+   }
+  },
+  {
+   "said": "morning",
+   "expecting": "",
+   "reads": {
+    "intent": "greeting"
+   }
+  },
+  {
+   "said": "uh hang on a sec",
+   "expecting": "",
+   "reads": {
+    "intent": "unclear"
+   }
+  },
+  {
+   "said": "the left one",
+   "expecting": "side",
+   "reads": {
+    "intent": "book",
+    "side": "left"
+   }
+  },
+  {
+   "said": "both of them actually",
+   "expecting": "side",
+   "reads": {
+    "intent": "book",
+    "side": "both"
+   }
+  },
+  {
+   "said": "yes, with it",
+   "expecting": "contrast",
+   "reads": {
+    "intent": "book",
+    "contrast": true
+   }
+  },
+  {
+   "said": "no, no dye please",
+   "expecting": "contrast",
+   "reads": {
+    "intent": "book",
+    "contrast": false
+   }
+  },
+  {
+   "said": "I honestly couldn't tell you",
+   "expecting": "contrast",
+   "reads": {
+    "intent": "unclear"
+   }
+  },
+  {
+   "said": "number two works",
+   "expecting": "slot",
+   "reads": {
+    "intent": "choose",
+    "which": 2
+   }
+  },
+  {
+   "said": "the last of those",
+   "expecting": "slot",
+   "reads": {
+    "intent": "choose",
+    "which": 3
+   }
+  },
+  {
+   "said": "none of them suit me I'm afraid",
+   "expecting": "slot",
+   "reads": {
+    "intent": "refuse"
+   }
+  },
+  {
+   "said": "yes go ahead",
+   "expecting": "confirm",
+   "reads": {
+    "intent": "agree"
+   }
+  },
+  {
+   "said": "no, that day is no good",
+   "expecting": "confirm",
+   "reads": {
+    "intent": "refuse"
+   }
+  },
+  {
+   "said": "yes but it's the right knee",
+   "expecting": "confirm",
+   "reads": {
+    "intent": "agree",
+    "side": "right"
+   }
+  },
+  {
+   "said": "the x-ray one",
+   "expecting": "exam_choice",
+   "reads": {
+    "intent": "book",
+    "exam": "XR-KNEE"
+   }
+  },
+  {
+   "said": "the first of the two",
+   "expecting": "exam_choice",
+   "reads": {
+    "intent": "choose",
+    "which": 1
+   }
+  },
+  {
+   "said": "Giovanni Esposito",
+   "expecting": "patient",
+   "reads": {
+    "intent": "book",
+    "name": "Giovanni Esposito"
+   }
+  },
+  {
+   "said": "it's for my son, Luca Ferri",
+   "expecting": "patient",
+   "reads": {
+    "intent": "book",
+    "name": "Luca Ferri"
+   }
+  },
+  {
+   "said": "why do you need that",
+   "expecting": "patient",
+   "reads": {
+    "intent": "unclear"
+   }
+  }
+ ]
+}

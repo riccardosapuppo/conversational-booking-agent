@@ -1,6 +1,6 @@
 """An agent that takes booking calls for a clinic.
 
-Six packages, and the direction between them is the design:
+Seven packages, and the direction between them is the design:
 
     clinic/        what is offered and when it is free. Knows nothing about
                    conversations.
@@ -11,9 +11,12 @@ Six packages, and the direction between them is the design:
     telephony/     a switchboard, as a client of the service.
     mcp/           the clinic as tools for a model, beside the service and
                    not on it.
+    model/         a second reader, which asks a model on this machine what
+                   a message means. Chosen on purpose; the rules are the
+                   default.
 
 Nothing above imports anything below it, and there is a test that says so.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Riccardo Sapuppo"

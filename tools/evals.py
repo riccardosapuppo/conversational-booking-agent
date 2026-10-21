@@ -5,6 +5,11 @@
     python -m tools.evals --show     and the whole of every call that did not pass
     python -m tools.evals --json     the same results as JSON, for whatever keeps them
 
+    python -m tools.evals --ollama qwen2.5:3b                read by a model, through Ollama
+    python -m tools.evals --ollama qwen2.5:3b --record FILE  and every answer kept, to replay
+    python -m tools.evals --replay FILE                      those answers again, with no model
+    python -m tools.evals --ollama qwen2.5:3b --development  the sentences the prompt was written on
+
 The calls are in evals/golden.json. Each one says what should have happened by
 the end of it in the words of the tools: ``confirm_booking`` with an exam, a
 side, a contrast, a patient and a time; ``hand_over`` with a reason; or
@@ -34,8 +39,12 @@ threshold that is not about anything.
 
 Two thresholds, both in the file next to the cases: the share of critical calls
 that pass, and the share of all calls that pass. Below either, this exits 1.
+They are the rules' thresholds. A run through a model is a measurement and not
+a gate: it prints them for comparison and fails only on an error, and its
+replay fails unless every verdict comes out as it was recorded.
 
-Nothing is written anywhere and nothing leaves the machine.
+Nothing is written anywhere unless --record says where, and nothing leaves the
+machine: the model, when there is one, is on it too.
 """
 
 from __future__ import annotations
@@ -735,15 +744,326 @@ def as_json(results: list[Result], summary: Summary, golden: Golden) -> str:
     )
 
 
+# ------------------------------------------------------------------ a model
+
+
+def machine() -> dict[str, Any]:
+    """The machine a run was made on, read off it rather than typed in."""
+    import ctypes
+    import os
+    import platform
+
+    found: dict[str, Any] = {
+        "system": f"{platform.system()} {platform.release()}",
+        "processor": platform.processor(),
+        "threads": os.cpu_count(),
+        "memory_bytes": 0,
+    }
+    if sys.platform == "win32":
+        import winreg
+
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+                found["processor"] = str(winreg.QueryValueEx(key, "ProcessorNameString")[0]).strip()
+        except OSError:
+            pass
+
+        class Status(ctypes.Structure):
+            _fields_ = [
+                ("length", ctypes.c_ulong),
+                ("load", ctypes.c_ulong),
+                ("total", ctypes.c_ulonglong),
+                ("free", ctypes.c_ulonglong),
+                ("total_page", ctypes.c_ulonglong),
+                ("free_page", ctypes.c_ulonglong),
+                ("total_virtual", ctypes.c_ulonglong),
+                ("free_virtual", ctypes.c_ulonglong),
+                ("free_extended", ctypes.c_ulonglong),
+            ]
+
+        status = Status(length=ctypes.sizeof(Status))
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):  # type: ignore[attr-defined]
+            found["memory_bytes"] = int(status.total)
+    else:
+        try:
+            for line in Path("/proc/cpuinfo").read_text().splitlines():
+                if line.startswith("model name"):
+                    found["processor"] = line.split(":", 1)[1].strip()
+                    break
+        except OSError:
+            pass
+        found["memory_bytes"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    return found
+
+
+@dataclass
+class Recording:
+    """What a run through a model asked, every answer in the order it came, and how long each took."""
+
+    answers: dict[str, dict] = field(default_factory=dict)
+    #: Every request's time, the repeated ones included: "yes" is asked again
+    #: in call after call, and each of those is a wait somebody sits through.
+    seconds: list[float] = field(default_factory=list)
+
+    def changed(self) -> list[str]:
+        """The requests that were not answered the same way every time they were asked."""
+        return [one["asked"] for one in self.answers.values() if len(set(one["contents"])) > 1]
+
+
+def recording(send: Callable[[dict], dict]) -> tuple[Callable[[dict], dict], Recording]:
+    """``send``, with every answer kept, in order, by the exact request it answered.
+
+    Every answer and not the first. At temperature zero with a fixed seed, the
+    first run had four requests answered one way early in the run and another
+    way later, so a recording of one answer per request replayed a run that
+    never happened. Kept in order, the replay gives each occasion the answer it
+    got, and the ones that changed are there to be read.
+    """
+    import time
+
+    from booking_agent.model.reader import key
+
+    kept = Recording()
+
+    def asked(request: dict) -> dict:
+        started = time.perf_counter()
+        answer = send(request)
+        took = round(time.perf_counter() - started, 3)
+        kept.seconds.append(took)
+
+        one = kept.answers.setdefault(
+            key(request), {"asked": request["messages"][-1]["content"], "contents": [], "seconds": []}
+        )
+        one["contents"].append(answer["message"]["content"])
+        one["seconds"].append(took)
+        return answer
+
+    return asked, kept
+
+
+def replaying(recorded: dict) -> Callable[[dict], dict]:
+    """The answers of a recorded run, each request's in the order they came, and nothing else.
+
+    A request that is not in the recording, or asked more often than it was,
+    raises: a prompt changed by a word, or a call that goes somewhere new, is a
+    run nobody has made, and it is never answered with the nearest thing that
+    was.
+    """
+    from booking_agent.model.reader import ModelError, key
+
+    if recorded.get("replayable") is False:
+        raise ModelError(f"this recording cannot be replayed: {recorded.get('why_not_replayable', '')}")
+
+    answers = recorded["answers"]
+    used: dict[str, int] = {}
+
+    def send(request: dict) -> dict:
+        which = key(request)
+        found = answers.get(which)
+        times = used.get(which, 0)
+        if found is None or times >= len(found["contents"]):
+            asked = request["messages"][-1]["content"].replace("\n", " / ")
+            raise ModelError(
+                f"not in the recording: {asked!r}"
+                + ("" if found is None else f", asked a {times + 1}th time and recorded {len(found['contents'])}")
+                + ". The prompt or the calls changed since it was made; run it again with "
+                f"python -m tools.evals --ollama {recorded['model']['model']} --record <file>"
+            )
+        used[which] = times + 1
+        return {"message": {"role": "assistant", "content": found["contents"][times]}}
+
+    return send
+
+
+def _totals(summary: Summary) -> dict[str, Any]:
+    def counted(one: Tally) -> dict[str, int]:
+        return {"calls": one.calls, "passed": one.passed, "missed": one.missed, "harmed": one.harmed, "errors": one.errors}
+
+    return {
+        "all": counted(summary.all),
+        "critical": counted(summary.critical),
+        "held_out": counted(summary.held_out),
+        "by_category": {name: counted(one) for name, one in summary.by_category.items()},
+    }
+
+
+def _verdicts(results: list[Result]) -> list[dict[str, Any]]:
+    return [{"id": one.case.id, "verdict": one.verdict, "why": one.why} for one in results]
+
+
+DEVELOPMENT = HERE / "evals" / "models" / "development.json"
+
+
+def development(model: str, url: str) -> int:
+    """The sentences the prompt was written against, read by the model again.
+
+    Not a measurement of anything but the prompt's own fit: these are the
+    sentences it was corrected on. The golden calls are the measurement.
+    """
+    from booking_agent.model.reader import Model, ollama
+
+    golden = load()
+    catalogue = from_file(golden.clinic, starting=golden.laid_out_from).catalogue
+    reader = Model(catalogue, model=model, send=ollama(url))
+    sentences = json.loads(DEVELOPMENT.read_text(encoding="utf-8"))["sentences"]
+
+    right = 0
+    for one in sentences:
+        reading = reader.read(one["said"], expecting=one["expecting"])
+        exam = next((exam.code for exam in catalogue if exam.name == reading.exam_text), None)
+        got = {
+            "intent": reading.intent,
+            "exam": exam,
+            "side": reading.side,
+            "contrast": reading.contrast,
+            "which": reading.which,
+            "name": reading.name or None,
+        }
+        wrong = {field: (got[field], wanted) for field, wanted in one["reads"].items() if got[field] != wanted}
+        right += not wrong
+        mark = "right" if not wrong else "WRONG"
+        detail = "" if not wrong else "  " + ", ".join(f"{field} {had!r}, not {wanted!r}" for field, (had, wanted) in wrong.items())
+        print(f"  {mark}  {one['expecting'] or '-':<11}  {one['said']!r}{detail}")
+
+    print(f"\n  {right} of {len(sentences)} read as written, by {model}")
+    return 0
+
+
+def recorded_run(path: Path) -> tuple[dict, list[Result], Summary, Golden]:
+    """A recorded run, replayed: what CI does instead of asking a model."""
+    from booking_agent.model.reader import Model
+
+    recorded = json.loads(path.read_text(encoding="utf-8"))
+    golden = load()
+    send = replaying(recorded)
+    model = recorded["model"]["model"]
+    results = run_all(golden, reader=lambda catalogue: Model(catalogue, model=model, send=send))
+    return recorded, results, summarise(results, golden), golden
+
+
 def main(argv: list[str]) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python -m tools.evals", description="Runs the golden calls and scores them.")
+    parser.add_argument("--show", action="store_true", help="the whole of every call that did not pass")
+    parser.add_argument("--json", action="store_true", help="the results as JSON")
+    parser.add_argument("--ollama", nargs="?", const="qwen2.5:3b", metavar="MODEL", help="read with a model, through Ollama")
+    parser.add_argument("--url", default="http://127.0.0.1:11434", help="where Ollama is listening")
+    parser.add_argument("--record", type=Path, metavar="FILE", help="with --ollama: keep every answer, to replay")
+    parser.add_argument("--replay", type=Path, metavar="FILE", help="read with the answers of a recorded run")
+    parser.add_argument(
+        "--development", action="store_true", help="with --ollama: the sentences the prompt was written against"
+    )
+    options = parser.parse_args(argv)
+
+    if options.ollama and options.development:
+        return development(options.ollama, options.url)
+
+    # With --json, what is printed on stdout is JSON and nothing else, so the
+    # lines about the run go to stderr: "recorded in" after the closing brace
+    # made the output of --json something no JSON reader would read.
+    notes = sys.stderr if options.json else sys.stdout
+
+    if options.replay:
+        from booking_agent.model.reader import ModelError
+
+        try:
+            recorded, results, summary, golden = recorded_run(options.replay)
+        except ModelError as why:
+            print(f"  {options.replay}: {why}", file=sys.stderr)
+            return 1
+        print(as_json(results, summary, golden) if options.json else report(results, summary, golden, show=options.show))
+        same = _totals(summary) == recorded["totals"] and _verdicts(results) == recorded["calls"]
+        print(file=notes)
+        print(
+            f"  replayed {recorded['model']['model']}, recorded {recorded['measured_at']}: "
+            + ("the same verdicts as the run that was recorded" if same else "NOT the verdicts that were recorded"),
+            file=notes,
+        )
+        return 0 if same and summary.all.errors == 0 else 1
+
+    if options.ollama:
+        from booking_agent.model.reader import OPTIONS, Model, describe, instructions, ollama, resident
+
+        golden = load()
+        about = describe(options.ollama, options.url)
+        send, kept = recording(ollama(options.url))
+        started = datetime.now()
+        results = run_all(golden, reader=lambda catalogue: Model(catalogue, model=options.ollama, send=send))
+        finished = datetime.now()
+        summary = summarise(results, golden)
+        print(as_json(results, summary, golden) if options.json else report(results, summary, golden, show=options.show))
+
+        seconds = sorted(kept.seconds)
+        timing = {
+            "messages": len(seconds),
+            "different_messages": len(kept.answers),
+            "seconds_total": round((finished - started).total_seconds(), 1),
+            "seconds_median": seconds[len(seconds) // 2] if seconds else 0,
+            "seconds_p90": seconds[int(len(seconds) * 0.9)] if seconds else 0,
+            "seconds_max": seconds[-1] if seconds else 0,
+        }
+        print(
+            f"\n  {options.ollama}: {timing['messages']} messages ({timing['different_messages']} different) "
+            f"read in {timing['seconds_total']} s, median {timing['seconds_median']} s each",
+            file=notes,
+        )
+        if kept.changed():
+            print(
+                f"  answered differently on different occasions: {len(kept.changed())} of the "
+                f"{sum(len(one['contents']) > 1 for one in kept.answers.values())} requests asked more than once",
+                file=notes,
+            )
+
+        if options.record:
+            clinic = from_file(golden.clinic, starting=golden.laid_out_from)
+            options.record.parent.mkdir(parents=True, exist_ok=True)
+            options.record.write_text(
+                json.dumps(
+                    {
+                        "about": (
+                            "Every answer the model gave in one run of the golden calls, kept in the order it "
+                            "gave them by the exact request each answered. python -m tools.evals --replay <this "
+                            "file> runs the calls again with these answers and no model, and fails unless every "
+                            "verdict comes out as it is written below."
+                        ),
+                        "measured_at": started.isoformat(timespec="seconds"),
+                        "model": about,
+                        "memory_while_loaded": resident(options.ollama, options.url),
+                        "machine": machine(),
+                        "options": OPTIONS,
+                        "instructions_sha256": hashlib.sha256(
+                            instructions(clinic.catalogue).encode("utf-8")
+                        ).hexdigest(),
+                        "cases_version": golden.version,
+                        "timing": timing,
+                        "asked_more_than_once": sum(len(one["contents"]) > 1 for one in kept.answers.values()),
+                        "answered_differently": kept.changed(),
+                        "totals": _totals(summary),
+                        "calls": _verdicts(results),
+                        "answers": kept.answers,
+                    },
+                    indent=1,
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            print(f"  recorded in {options.record}", file=notes)
+
+        # A model's run is a measurement, not a gate: the thresholds are the
+        # rules', and are printed above for comparison. It fails on an error.
+        return 0 if summary.all.errors == 0 else 1
+
     golden = load()
     results = run_all(golden)
     summary = summarise(results, golden)
 
-    if "--json" in argv:
+    if options.json:
         print(as_json(results, summary, golden))
     else:
-        print(report(results, summary, golden, show="--show" in argv))
+        print(report(results, summary, golden, show=options.show))
 
     return 0 if summary.met else 1
 

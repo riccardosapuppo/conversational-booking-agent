@@ -608,14 +608,36 @@ class Agent:
             conversation.patient = reading.name
 
         if reading.exam_text:
-            # Against the question that was asked first, and against the whole
-            # catalogue after — somebody is allowed to answer "did you mean the
-            # MRI or the x-ray?" with "actually, make it an ultrasound".
-            request = self._where_to_look(conversation).resolve(reading.exam_text)
+            # An exam called by its own name is that exam, whatever was just
+            # asked. Looked for among the two knees the agent had asked about,
+            # "X-ray chest", which is how the model reader hands an exam on,
+            # found the X-ray of the knee: "neither, a chest film", read as a
+            # refusal naming the chest, became a knee x-ray.
+            request = None
+            if reading.exam_text.strip().lower() in {exam.name.lower() for exam in self._catalogue}:
+                request = self._catalogue.resolve(reading.exam_text)
+
+            # Otherwise against the question that was asked first, and against
+            # the whole catalogue after — somebody is allowed to answer "did
+            # you mean the MRI or the x-ray?" with "actually, make it an
+            # ultrasound".
+            if request is None:
+                request = self._where_to_look(conversation).resolve(reading.exam_text)
             if request is None and conversation.candidates:
                 request = self._catalogue.resolve(reading.exam_text)
 
             if request is not None:
+                # The side and the contrast as the reader read them, when it
+                # did. The rules read both out of the same words the catalogue
+                # resolves, so for them this changes nothing; a reader that
+                # names the exam in the catalogue's own words lost both, since
+                # "MRI knee" has no side in it, and the caller was asked again
+                # for the side they had just given.
+                request = Request(
+                    exam=request.exam,
+                    side=reading.side or request.side,
+                    contrast=request.contrast if reading.contrast is None else reading.contrast,
+                )
                 request = self._with_what_was_said(conversation, request)
 
                 # The same exam named again keeps what is already known about

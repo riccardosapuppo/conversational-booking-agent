@@ -52,6 +52,14 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      # The same hundred calls through the reader that asks a model, with no
+      # model and no network: the answers a real one gave on the day it was
+      # measured, looked up by the exact request that got each of them. It
+      # fails unless every verdict comes out as recorded, and a request that
+      # was never recorded, as after a prompt changed by a word, is an error.
+      - name: The golden calls, read by a model, replayed
+        run: python -m tools.evals --replay evals/models/qwen2.5-3b.json
+
       # The MCP server, through the SDK's own client: over the protocol in
       # memory, and as the process a model host starts. These are in the tests
       # above too; on their own here, so a red one says which door it was.

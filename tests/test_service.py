@@ -200,7 +200,8 @@ def reaches(name: str, roots: tuple[str, ...]) -> bool:
 
 
 #: What the domain must never know is there: a web server, a protocol, the
-#: client that talks to a switchboard, or either of the doors built on it.
+#: client that talks to a switchboard, the doors built on them, or the reader
+#: that asks a model over the network.
 NOT_IN_THE_DOMAIN = (
     "fastapi",
     "starlette",
@@ -211,6 +212,7 @@ NOT_IN_THE_DOMAIN = (
     "booking_agent.service",
     "booking_agent.telephony",
     "booking_agent.mcp",
+    "booking_agent.model",
 )
 
 
@@ -241,6 +243,19 @@ class WhatTheServiceDoesNotKnow(unittest.TestCase):
                     self.assertFalse(
                         reaches(name, ("fastapi", "uvicorn", "booking_agent.service", "booking_agent.telephony")),
                         f"mcp/{module.name} imports {name}",
+                    )
+
+    def test_the_reader_that_asks_a_model_stands_on_nothing_but_the_domain(self) -> None:
+        # It talks to Ollama through the standard library, so choosing it
+        # installs nothing, and it is a reader: it has no business with the
+        # web server, the switchboard or the protocol for models.
+        for module in self.modules("model"):
+            for name in imported(module.read_text(encoding="utf-8")):
+                with self.subTest(module=module.name, imports=name):
+                    self.assertFalse(
+                        reaches(name, ("fastapi", "uvicorn", "httpx", "mcp", "booking_agent.service",
+                                       "booking_agent.telephony", "booking_agent.mcp")),
+                        f"model/{module.name} imports {name}",
                     )
 
     def test_and_neither_of_the_other_doors_knows_it_is_there(self) -> None:
