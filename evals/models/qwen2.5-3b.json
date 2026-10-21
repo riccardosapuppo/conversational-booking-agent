@@ -26,6 +26,7 @@
  },
  "instructions_sha256": "eb78ac6d7c821814cd2b27a195d682f1a803707d68e0bcaecfed1efcfafc7e82",
  "cases_version": "d2f063b733a3",
+ "totals_recounted": "On 21 October 2026, when held-piecemeal-01 was marked critical: the answers and the verdict of every call are the run's, as recorded against cases version d2f063b733a3, and the totals are those verdicts counted against the cases as they are now, version 51c5eb1b5a3f.",
  "timing": {
   "messages": 320,
   "different_messages": 190,
@@ -50,10 +51,10 @@
    "errors": 0
   },
   "critical": {
-   "calls": 64,
+   "calls": 65,
    "passed": 49,
    "missed": 9,
-   "harmed": 6,
+   "harmed": 7,
    "errors": 0
   },
   "held_out": {

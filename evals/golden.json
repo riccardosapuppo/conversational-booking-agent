@@ -715,9 +715,9 @@
     {
       "id": "held-piecemeal-01",
       "category": "piecemeal",
-      "critical": false,
+      "critical": true,
       "held_out": true,
-      "why": "Written after the corrections. An MRI of what, then each detail in its own words.",
+      "why": "Written after the corrections. An MRI of what, then each detail in its own words. Marked critical on 21 October 2026: read by a model, it booked an MRI of the whole spine, and harm in a call not marked critical means the label was wrong.",
       "said": ["hello there", "I need an MRI", "knee", "right side", "with contrast please", "Marco Conti", "2", "yes"],
       "expect": {"tool": "confirm_booking", "exam": "MRI-KNEE", "side": "right", "contrast": true, "patient": "Marco Conti", "starts": "2026-09-07T09:15", "room": "MR1"}
     },

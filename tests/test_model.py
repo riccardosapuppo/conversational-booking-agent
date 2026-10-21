@@ -495,9 +495,14 @@ class TheTwoRuns(unittest.TestCase):
         return json.loads(first.read_text(encoding="utf-8")), json.loads(second.read_text(encoding="utf-8"))
 
     def test_the_same_verdict_on_every_call(self) -> None:
+        # The totals for all the calls and for the held out ones as well. Not
+        # the critical ones: the first run is kept as it was counted, before
+        # held-piecemeal-01 was marked critical, and the second was recounted.
         first, second = self.runs()
         self.assertEqual(first["calls"], second["calls"])
-        self.assertEqual(first["totals"], second["totals"])
+        for kind in ("all", "held_out", "by_category"):
+            self.assertEqual(first["totals"][kind], second["totals"][kind])
+        self.assertEqual(second["totals"]["critical"]["calls"], first["totals"]["critical"]["calls"] + 1)
 
     def test_the_same_first_answer_to_every_request(self) -> None:
         first, second = self.runs()
